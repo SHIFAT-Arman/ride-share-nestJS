@@ -1,5 +1,19 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { DriverService } from './driver.service';
+import { DriverDto } from './dto/driver.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage, MulterError } from 'multer';
 
 @Controller('/v1/api/drivers')
 export class DriverController {
@@ -44,5 +58,40 @@ export class DriverController {
   @Get('/nearby')
   public getNearbyDrivers(): object {
     return { drivers: [] };
+  }
+
+  @Post('createDriver')
+  @UsePipes(new ValidationPipe())
+  @UseInterceptors(
+    FileInterceptor('myfile', {
+      fileFilter: (req, file, cb) => {
+        if (file.originalname.match(/^.*\.(jpg|webp|png|jpeg)$/))
+          cb(null, true);
+        else {
+          cb(new MulterError('LIMIT_UNEXPECTED_FILE', 'image'), false);
+        }
+      },
+      limits: { fileSize: 5000000 },
+      storage: diskStorage({
+        destination: './uploads',
+        filename: function (req, file, cb) {
+          cb(null, Date.now() + file.originalname);
+        },
+      }),
+    }),
+  )
+  public createDriver(
+    @Body() createDriverDto: DriverDto,
+    @UploadedFile() myfile: Express.Multer.File,
+  ): object {
+    createDriverDto.myfile = myfile.originalname;
+    console.log(myfile.originalname);
+
+    return this.driverService.createDriver(createDriverDto);
+  }
+
+  @Get('/getimage/:name')
+  getImages(@Param('name') name, @Res() res) {
+    res.sendFile(name, { root: './uploads' });
   }
 }

@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Body, Injectable } from '@nestjs/common';
+import { DriverDto } from './dto/driver.dto';
 
 @Injectable()
 export class DriverService {
@@ -42,5 +43,8 @@ export class DriverService {
   }
   public getNearbyDrivers(): object {
     return { drivers: [] };
+  }
+  public createDriver(createDriverDto: DriverDto): object {
+    return createDriverDto;
   }
 }
