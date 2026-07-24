@@ -19,10 +19,7 @@ export class VehicleDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsEmail({},
-    { message:
-        'invalid email'})
-
+  @IsEmail({}, { message: 'invalid email' })
   driverAssigned: string;
 
   @IsString()

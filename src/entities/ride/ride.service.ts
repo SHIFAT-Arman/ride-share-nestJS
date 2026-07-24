@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { RideEstimateDto } from './dto/ride-estimate.dto';
+import { RideEstimateResponseDto } from './dto/ride-estimate-response.dto';
 
 @Injectable()
 export class RideService {
-  public estimateRide(rideEstimateDto: RideEstimateDto): object {
-    return {
-      ...rideEstimateDto,
-    };
-  }
+  // public estimateRide(
+  //   rideEstimateResponseDto: RideEstimateResponseDto,
+  // ): object {}
 }

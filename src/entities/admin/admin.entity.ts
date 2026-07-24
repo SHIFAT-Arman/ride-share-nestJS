@@ -3,34 +3,41 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { AdminRole } from './admin-role.model';
+// import { randomUUID } from 'crypto';
+import { AdminProfile } from './adminProfile/admin-profile.entity';
 
 @Entity()
 export class Admin {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({
-    type: 'varchar',
-    length: 50,
-    nullable: false,
-  })
-  firstName: string;
+  // @Column({
+  //   type: 'varchar',
+  //   length: 150,
+  //   nullable: false,
+  //   unique: true,
+  //   name: 'uniqeId',
+  //   // generated: 'uuid', compile error
+  // })
+  // // @Generated('uuid')
+  // uniqeId: string;
 
-  @Column({
-    type: 'varchar',
-    length: 50,
-    nullable: false,
-  })
-  lastName: string;
+  // @BeforeInsert()
+  // generateUniqueId() {
+  //   this.uniqeId = randomUUID();
+  // }
 
   @Column({
     type: 'varchar',
     length: 100,
     nullable: false,
+    // unique: true,
   })
   email: string;
 
@@ -48,12 +55,6 @@ export class Admin {
   })
   role: AdminRole;
 
-  @Column({
-    type: 'varchar',
-    nullable: true,
-  })
-  profilePictureUrl: string;
-
   @CreateDateColumn({
     type: 'timestamp',
   })
@@ -66,4 +67,9 @@ export class Admin {
 
   @DeleteDateColumn()
   deletedAt?: Date;
+
+  // @OneToOne(() => AdminProfile, (profile) => profile.admin, { cascade: true })
+  @OneToOne(() => AdminProfile, { cascade: true, nullable: false })
+  @JoinColumn({ name: 'profileId' })
+  profile: AdminProfile;
 }
