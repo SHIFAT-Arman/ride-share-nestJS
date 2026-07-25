@@ -8,4 +8,8 @@ export class CreateAnnouncementDto {
   @IsNotEmpty()
   @IsString()
   content: string;
+
+  // @IsNotEmpty()
+  // @IsUUID()
+  // adminId: string;
 }

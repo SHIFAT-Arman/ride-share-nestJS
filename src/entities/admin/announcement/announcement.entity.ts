@@ -2,11 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { AdminProfile } from '../adminProfile/admin-profile.entity';
+import { Admin } from '../admin.entity';
 
 @Entity()
 export class Announcement {
@@ -36,6 +37,10 @@ export class Announcement {
   })
   updatedAt: Date;
 
-  @ManyToOne(() => AdminProfile, (adminProfile) => adminProfile.announcements)
-  adminProfile: AdminProfile;
+  @ManyToOne(() => Admin, (admin) => admin.announcements, {
+    onDelete: 'CASCADE',
+    nullable: false,
+  })
+  @JoinColumn({ name: 'adminId' })
+  admin: Admin;
 }

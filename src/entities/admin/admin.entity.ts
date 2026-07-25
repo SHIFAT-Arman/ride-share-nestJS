@@ -3,7 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,6 +11,8 @@ import {
 import { AdminRole } from './admin-role.model';
 // import { randomUUID } from 'crypto';
 import { AdminProfile } from './adminProfile/admin-profile.entity';
+import { Expose } from 'class-transformer';
+import { Announcement } from './announcement/announcement.entity';
 
 @Entity()
 export class Admin {
@@ -39,6 +41,7 @@ export class Admin {
     nullable: false,
     // unique: true,
   })
+  @Expose()
   email: string;
 
   @Column({
@@ -69,7 +72,12 @@ export class Admin {
   deletedAt?: Date;
 
   // @OneToOne(() => AdminProfile, (profile) => profile.admin, { cascade: true })
-  @OneToOne(() => AdminProfile, { cascade: true, nullable: false })
-  @JoinColumn({ name: 'profileId' })
+  @OneToOne(() => AdminProfile, (profile) => profile.admin, { cascade: true })
+  @Expose()
   profile: AdminProfile;
+
+  @OneToMany(() => Announcement, (announcement) => announcement.admin, {
+    cascade: true,
+  })
+  announcements: Announcement[];
 }

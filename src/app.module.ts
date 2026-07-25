@@ -31,6 +31,7 @@ import { AdminModule } from './entities/admin/admin.module';
     RideModule,
     VehicleModule,
     AdminModule,
+    // AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
