@@ -23,6 +23,7 @@ import { AdminModule } from './entities/admin/admin.module';
       database: process.env.DB_DATABASE,
       autoLoadEntities: true,
       synchronize: true,
+      // logging: true,
     }),
     RiderModule,
     DriverModule,

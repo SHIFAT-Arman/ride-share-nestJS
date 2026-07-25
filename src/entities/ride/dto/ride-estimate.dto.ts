@@ -1,6 +1,7 @@
 import { LocationDto } from 'src/entities/location/dto/location.dto';
-import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
+import { IsEnum, IsNotEmpty, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { VehicleType } from 'src/entities/vehicle/enums/vehicle-type.enum';
 
 export class RideEstimateDto {
   @IsNotEmpty()
@@ -13,6 +14,7 @@ export class RideEstimateDto {
   @Type(() => LocationDto)
   destination: LocationDto;
 
-  @IsOptional()
-  vehicleType: string; //later enum from vehicle class
+  @IsNotEmpty()
+  @IsEnum(VehicleType)
+  vehicleType: VehicleType;
 }

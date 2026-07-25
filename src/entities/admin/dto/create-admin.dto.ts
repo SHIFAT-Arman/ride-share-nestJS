@@ -1,25 +1,17 @@
 import {
-  // IsBoolean,
-  // IsDateString,
   IsEmail,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsDateString,
 } from 'class-validator';
 import { AdminRole } from '../admin-role.model';
-// import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 export class CreateAdminDto {
-  // id
-  @IsString()
-  @IsNotEmpty()
-  firstName: string;
-
-  @IsString()
-  @IsNotEmpty()
-  lastName: string;
-
+  // Admin table
   @IsEmail()
   @IsNotEmpty()
   email: string;
@@ -31,14 +23,29 @@ export class CreateAdminDto {
   @IsEnum(AdminRole)
   role: AdminRole;
 
-  // @IsNotEmpty()
-  // @Transform(({ value }) => {
-  //   if (value === 'true') return true;
-  //   if (value === 'false') return false;
-  // })
-  // @IsBoolean()
-  // isActive: boolean;
+  // AdminProfile table
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
 
   @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsDateString()
+  joiningDate?: string;
+
+  @IsOptional()
+  @IsString()
   profilePictureUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  age?: number;
 }
