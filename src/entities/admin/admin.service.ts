@@ -157,23 +157,35 @@ export class AdminService {
       order: {
         createdAt: 'DESC',
       },
-      relations: { adminProfile: true },
+      relations: { admin: true },
     });
   }
 
   public async createAnnouncement(
     createAnnouncementDto: CreateAnnouncementDto,
+    adminId: string,
   ): Promise<Announcement> {
+    // console.log(createAnnouncementDto);
     const announcement = this.announcementRepository.create({
-      ...createAnnouncementDto,
+      title: createAnnouncementDto.title,
+      content: createAnnouncementDto.content,
+      admin: { id: adminId } as Admin,
     });
     return this.announcementRepository.save(announcement);
   }
 
+  // public async deleteAnnouncementById(id: string): Promise<void> {
+
+  // }
+
   public async deleteAdminById(id: string): Promise<void> {
     const admin = await this.adminRepository.findOneBy({ id });
-    console.log(admin);
+    // console.log(admin);
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
-    await this.adminRepository.softDelete(id);
+    await this.adminRepository.remove(admin);
+  }
+
+  public async findOneByEmail(email: string): Promise<Admin | null> {
+    return await this.adminRepository.findOneBy({ email });
   }
 }

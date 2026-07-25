@@ -1,20 +1,24 @@
 import {
   Column,
   Entity,
-  OneToMany,
+  JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Admin } from '../admin.entity';
-import { Announcement } from '../announcement/announcement.entity';
+
+import { Expose } from 'class-transformer';
 
 @Entity()
 export class AdminProfile {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @OneToOne(() => Admin, (admin) => admin.profile)
-  // @JoinColumn({ name: 'adminId' })
+  @OneToOne(() => Admin, (admin) => admin.profile, {
+    onDelete: 'CASCADE',
+    nullable: false,
+  })
+  @JoinColumn({ name: 'adminId' })
   admin: Admin;
 
   @Column({
@@ -22,6 +26,7 @@ export class AdminProfile {
     length: 50,
     nullable: false,
   })
+  @Expose()
   firstName: string;
 
   @Column({
@@ -29,6 +34,7 @@ export class AdminProfile {
     length: 50,
     nullable: false,
   })
+  @Expose()
   lastName: string;
 
   @Column({ type: 'smallint', nullable: true })
@@ -56,7 +62,4 @@ export class AdminProfile {
     default: () => 'CURRENT_TIMESTAMP',
   })
   joiningDate: string;
-
-  @OneToMany(() => Announcement, (announcement) => announcement.adminProfile)
-  announcements: Announcement[];
 }
