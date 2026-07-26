@@ -1,23 +1,42 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  ParseIntPipe,
+  Patch,
   Post,
   Res,
-  UploadedFile,
-  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
-import { DriverDto } from './dto/driver.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage, MulterError } from 'multer';
+import { CreateDriverDto, UpdateStatusDto } from './dto/driver.dto';
+import type { Response } from 'express';
 
 @Controller('/v1/api/drivers')
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
+
+  @Get('/status/inactive')
+  public getInactiveDrivers() {
+    return this.driverService.findInactive();
+  }
+
+  @Get('/status/active')
+  public getActiveDrivers() {
+    return this.driverService.findActive();
+  }
+
+  @Get('/filter/older-than-40')
+  public getDriversOlderThan40() {
+    return this.driverService.findOlderThan40();
+  }
+  @Get('/:id/fullname')
+  public getDriverByName(@Param('id', ParseIntPipe) id: number) {
+    return this.driverService.findFullNameById(id);
+  }
 
   @Get()
   public getDrivers(): object {
@@ -62,36 +81,25 @@ export class DriverController {
 
   @Post('createDriver')
   @UsePipes(new ValidationPipe())
-  @UseInterceptors(
-    FileInterceptor('myfile', {
-      fileFilter: (req, file, cb) => {
-        if (file.originalname.match(/^.*\.(jpg|webp|png|jpeg)$/))
-          cb(null, true);
-        else {
-          cb(new MulterError('LIMIT_UNEXPECTED_FILE', 'image'), false);
-        }
-      },
-      limits: { fileSize: 5000000 },
-      storage: diskStorage({
-        destination: './uploads',
-        filename: function (req, file, cb) {
-          cb(null, Date.now() + file.originalname);
-        },
-      }),
-    }),
-  )
-  public createDriver(
-    @Body() createDriverDto: DriverDto,
-    @UploadedFile() myfile: Express.Multer.File,
-  ): object {
-    createDriverDto.myfile = myfile.originalname;
-    console.log(myfile.originalname);
-
+  public createDriver(@Body() createDriverDto: CreateDriverDto): object {
     return this.driverService.createDriver(createDriverDto);
   }
 
   @Get('/getimage/:name')
-  getImages(@Param('name') name, @Res() res) {
+  getImages(@Param('name') name: string, @Res() res: Response) {
     res.sendFile(name, { root: './uploads' });
+  }
+
+  @Patch('/:id/status')
+  @UsePipes(new ValidationPipe())
+  public changeStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateStatusDto,
+  ) {
+    return this.driverService.changeStatus(id, dto.status);
+  }
+  @Delete('/:id')
+  public deleteDriver(@Param('id', ParseIntPipe) id: number): object {
+    return { message: `Driver with id ${id} deleted successfully` };
   }
 }

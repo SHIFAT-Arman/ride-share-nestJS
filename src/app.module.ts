@@ -36,4 +36,13 @@ import { AdminModule } from './entities/admin/admin.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    console.log('DB CONFIG CHECK:', {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      db: process.env.DB_DATABASE,
+    });
+  }
+}
