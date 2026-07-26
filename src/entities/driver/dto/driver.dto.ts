@@ -1,53 +1,42 @@
 import {
   IsNotEmpty,
   IsString,
-  IsUUID,
+  IsInt,
+  Min,
+  IsOptional,
   IsEmail,
-  IsDateString,
-  IsPhoneNumber,
-  Matches,
-  Length,
-  IsAlpha,
+  IsEnum,
 } from 'class-validator';
+import { DriverStatus } from '../driver.entity';
 
-export class DriverDto {
-  @IsNotEmpty()
-  @IsUUID()
-  @IsString()
-  id?: string;
-
-  @IsNotEmpty()
-  @IsAlpha()
-  @IsString()
-  firstName?: string;
-
-  @IsNotEmpty()
-  @IsAlpha()
-  @IsString()
-  lastName?: string;
-
+export class CreateDriverDto {
   @IsNotEmpty()
   @IsString()
+  fullName!: string;
+
+  @IsNotEmpty()
+  @IsInt()
+  @Min(0)
+  age!: number;
+
+  @IsOptional()
+  @IsEnum(DriverStatus)
+  status!: DriverStatus;
+
+  @IsNotEmpty()
   @IsEmail()
-  @Matches(/@aiub\.edu$/)
-  email?: string;
+  email!: string;
 
   @IsNotEmpty()
   @IsString()
-  @IsPhoneNumber('BD')
-  phoneNumber?: string;
+  password!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  @Length(6, 20)
-  @Matches(/[A-Z]/, {
-    message: 'passwordHash must contain at least one uppercase letter',
-  })
-  passwordHash?: string;
-
-  @IsNotEmpty()
-  @IsDateString()
-  licenseExpiryDate?: string;
-
   myfile?: string;
+}
+export class UpdateStatusDto {
+  @IsNotEmpty()
+  @IsEnum(DriverStatus)
+  status!: DriverStatus;
 }

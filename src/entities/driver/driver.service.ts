@@ -1,8 +1,16 @@
-import { Body, Injectable } from '@nestjs/common';
-import { DriverDto } from './dto/driver.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CreateDriverDto } from './dto/driver.dto';
+import { DriverEntity, DriverStatus } from './driver.entity';
 
 @Injectable()
 export class DriverService {
+  constructor(
+    @InjectRepository(DriverEntity)
+    private readonly driverRepo: Repository<DriverEntity>,
+  ) {}
+
   public getDrivers(): object {
     return { id: 1, name: 'Avara', vehicle: 'Car' };
   }
@@ -44,7 +52,50 @@ export class DriverService {
   public getNearbyDrivers(): object {
     return { drivers: [] };
   }
-  public createDriver(createDriverDto: DriverDto): object {
-    return createDriverDto;
+  public async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
+    const driver = this.driverRepo.create(dto);
+    return this.driverRepo.save(driver);
+  }
+
+  public async changeStatus(
+    id: number,
+    status: DriverStatus,
+  ): Promise<DriverEntity> {
+    const driver = await this.driverRepo.findOneBy({ id });
+    if (!driver) {
+      throw new NotFoundException(`Driver with id ${id} not found`);
+    }
+    driver.status = status;
+    return this.driverRepo.save(driver);
+  }
+
+  public async findInactive(): Promise<DriverEntity[]> {
+    return this.driverRepo.find({ where: { status: DriverStatus.INACTIVE } });
+  }
+  public async findActive(): Promise<DriverEntity[]> {
+    return this.driverRepo.find({ where: { status: DriverStatus.ACTIVE } });
+  }
+
+  public async findOlderThan40(): Promise<DriverEntity[]> {
+    return this.driverRepo
+      .createQueryBuilder('driver')
+      .where('driver.age > :age', { age: 40 })
+      .getMany();
+  }
+  public async findFullNameById(
+    id: number,
+  ): Promise<{ id: number; fullName: string }> {
+    const driver = await this.driverRepo.findOneBy({ id });
+    if (!driver) {
+      throw new NotFoundException(`Driver with id ${id} not found`);
+    }
+    return { id: driver.id, fullName: driver.fullName };
+  }
+  public async deleteDriver(id: number): Promise<{ message: string }> {
+    const result = await this.driverRepo.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Driver with id ${id} not found`);
+    }
+    return { message: `Driver with id ${id} deleted successfully` };
   }
 }
