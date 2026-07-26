@@ -7,13 +7,19 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Res,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
-import { CreateDriverDto, UpdateStatusDto } from './dto/driver.dto';
+import {
+  CreateDriverDto,
+  UpdateDriverDto,
+  UpdateStatusDto,
+} from './dto/driver.dto';
 import type { Response } from 'express';
+import { DriverEntity } from './driver.entity';
 
 @Controller('/v1/api/drivers')
 export class DriverController {
@@ -99,7 +105,16 @@ export class DriverController {
     return this.driverService.changeStatus(id, dto.status);
   }
   @Delete('/:id')
-  public deleteDriver(@Param('id', ParseIntPipe) id: number): object {
-    return { message: `Driver with id ${id} deleted successfully` };
+  public async deleteDriver(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ message: string }> {
+    return this.driverService.deleteDriver(id);
+  }
+  @Put('/:id')
+  public async updateDriver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDriverDto: UpdateDriverDto,
+  ): Promise<DriverEntity> {
+    return this.driverService.updateDriver(id, updateDriverDto);
   }
 }

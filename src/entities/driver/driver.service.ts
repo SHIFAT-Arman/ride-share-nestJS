@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateDriverDto } from './dto/driver.dto';
+import { CreateDriverDto, UpdateDriverDto } from './dto/driver.dto';
 import { DriverEntity, DriverStatus } from './driver.entity';
 
 @Injectable()
@@ -97,5 +97,18 @@ export class DriverService {
       throw new NotFoundException(`Driver with id ${id} not found`);
     }
     return { message: `Driver with id ${id} deleted successfully` };
+  }
+  async updateDriver(
+    id: number,
+    updateDriverDto: UpdateDriverDto,
+  ): Promise<DriverEntity> {
+    const driver = await this.driverRepo.findOneBy({ id });
+    if (!driver) {
+      throw new NotFoundException(`Driver with id ${id} not found`);
+    }
+
+    Object.assign(driver, updateDriverDto);
+
+    return this.driverRepo.save(driver);
   }
 }
