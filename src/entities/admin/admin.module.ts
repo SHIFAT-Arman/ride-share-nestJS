@@ -13,12 +13,12 @@ import { AuthController } from './auth/auth.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { StringValue } from 'ms';
 import { AuthGuard } from './auth/auth.guard';
+import { EmailService } from './email/email.service';
 
 console.log(process.env.JWT_SECRET);
 @Module({
   imports: [
     TypeOrmModule.forFeature([Admin, AdminProfile, Announcement]),
-    CommonModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -29,8 +29,15 @@ console.log(process.env.JWT_SECRET);
         },
       }),
     }),
+    CommonModule,
   ],
-  providers: [AdminService, PasswordService, AuthService, AuthGuard],
+  providers: [
+    AdminService,
+    PasswordService,
+    AuthService,
+    AuthGuard,
+    EmailService,
+  ],
   controllers: [AdminController, AuthController],
   // exports: [AdminService, PasswordService], // for auth- temporarily
 })
