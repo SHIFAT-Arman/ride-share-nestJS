@@ -40,3 +40,17 @@ export class UpdateStatusDto {
   @IsEnum(DriverStatus)
   status!: DriverStatus;
 }
+export class UpdateDriverDto {
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  age?: number;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
