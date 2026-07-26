@@ -28,6 +28,8 @@ import { CreateAnnouncementDto } from './announcement/create-announcement.dto';
 import { Announcement } from './announcement/announcement.entity';
 import { FindAnnouncementParams } from './params/find-announcement.params';
 import { AuthGuard } from './auth/auth.guard';
+import { EmailService } from './email/email.service';
+import { SendEmailDto } from './email/send-email.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -39,7 +41,10 @@ interface RequestWithUser extends Request {
 
 @Controller('/v1/api/admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly emailService: EmailService,
+  ) {}
 
   @UseGuards(AuthGuard)
   @Get('admin-list')
@@ -125,5 +130,11 @@ export class AdminController {
   @HttpCode(204)
   public async deleteAdminById(@Param('id') id: string): Promise<void> {
     return await this.adminService.deleteAdminById(id);
+  }
+
+  @Post('send-email')
+  @HttpCode(200)
+  async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<void> {
+    await this.emailService.sendEmail(sendEmailDto);
   }
 }
