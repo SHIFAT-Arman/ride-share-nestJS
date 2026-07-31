@@ -35,6 +35,7 @@ export class CreateDriverDto {
   @IsString()
   myfile?: string;
 }
+
 export class UpdateStatusDto {
   @IsNotEmpty()
   @IsEnum(DriverStatus)

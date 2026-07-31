@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateDriverDto, UpdateDriverDto } from './dto/driver.dto';
+import { CreateDriverDto, UpdateDriverDto } from './dto/create-driver.dto';
 import { DriverEntity, DriverStatus } from './driver.entity';
+import bcrypt from 'node_modules/bcryptjs';
 
 @Injectable()
 export class DriverService {
@@ -52,8 +53,21 @@ export class DriverService {
   public getNearbyDrivers(): object {
     return { drivers: [] };
   }
+
+  public async findOneByEmail(email: string): Promise<DriverEntity | null> {
+    return this.driverRepo.findOneBy({ email });
+  }
+
   public async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
-    const driver = this.driverRepo.create(dto);
+    const hashedPass = await bcrypt.hash(dto.password, 12);
+
+    const driver = this.driverRepo.create({
+      email: dto.email,
+      password: hashedPass,
+      fullName: dto.fullName,
+      age: dto.age,
+      status: DriverStatus.INACTIVE, // default status
+    });
     return this.driverRepo.save(driver);
   }
 
