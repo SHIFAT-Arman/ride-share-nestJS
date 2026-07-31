@@ -8,22 +8,53 @@ import {
   Patch,
   Post,
   Put,
+  Req,
   Res,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
-import {
-  CreateDriverDto,
-  UpdateDriverDto,
-  UpdateStatusDto,
-} from './dto/driver.dto';
+import { UpdateDriverDto, UpdateStatusDto } from './dto/create-driver.dto';
 import type { Response } from 'express';
 import { DriverEntity } from './driver.entity';
+import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
+import { Vehicle } from '../vehicle/vehicle.entity';
+import { VehicleService } from '../vehicle/vehicle.service';
+import { AuthGuard } from './auth/auth.guard';
+import { Rating } from '../rating/rating.entity';
+import { RatingService } from '../rating/rating.service';
+
+interface RequestWithUser extends Request {
+  user: {
+    sub: string;
+    email: string;
+    role: string;
+  };
+}
 
 @Controller('/v1/api/drivers')
 export class DriverController {
-  constructor(private readonly driverService: DriverService) {}
+  constructor(
+    private readonly driverService: DriverService,
+    private readonly vehicleService: VehicleService,
+    private readonly ratingService: RatingService,
+  ) {}
+
+  @UseGuards(AuthGuard)
+  @Post('create-vehicle')
+  public async createVehicle(
+    @Body() createVehicleDto: CreateVehicleDto,
+    @Req() req: RequestWithUser,
+  ): Promise<Vehicle> {
+    return this.vehicleService.createVehicle(createVehicleDto, req.user.sub);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('get-all-ratings')
+  public getAllRatings(@Req() req: RequestWithUser): Promise<Rating[] | null> {
+    return this.ratingService.getAllRatings(parseInt(req.user.sub));
+  }
 
   @Get('/status/inactive')
   public getInactiveDrivers() {
@@ -85,11 +116,11 @@ export class DriverController {
     return { drivers: [] };
   }
 
-  @Post('createDriver')
-  @UsePipes(new ValidationPipe())
-  public createDriver(@Body() createDriverDto: CreateDriverDto): object {
-    return this.driverService.createDriver(createDriverDto);
-  }
+  // @Post('createDriver')
+  // @UsePipes(new ValidationPipe())
+  // public createDriver(@Body() createDriverDto: CreateDriverDto): object {
+  //   return this.driverService.createDriver(createDriverDto);
+  // }
 
   @Get('/getimage/:name')
   getImages(@Param('name') name: string, @Res() res: Response) {
@@ -104,6 +135,7 @@ export class DriverController {
   ) {
     return this.driverService.changeStatus(id, dto.status);
   }
+
   @Delete('/:id')
   public async deleteDriver(
     @Param('id', ParseIntPipe) id: number,

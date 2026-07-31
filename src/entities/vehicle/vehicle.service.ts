@@ -1,8 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { VehicleDto } from './dto/vehicle.dto';
+import { CreateVehicleDto } from './dto/create-vehicle.dto';
+import { Vehicle } from './vehicle.entity';
+import { Repository } from 'typeorm';
+import { DriverEntity } from '../driver/driver.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class VehicleService {
+  constructor(
+    @InjectRepository(Vehicle)
+    private readonly vehicleRepository: Repository<Vehicle>,
+  ) {}
   getVehicle(): string {
     return 'All Vehicle';
   }
@@ -31,11 +39,31 @@ export class VehicleService {
     return { vehicleId: id, verificationStatus: 'Verified' };
   }
 
-  patchVehicle(id: number, vehicleDto: VehicleDto): object {
-    return { message: `Vehicle ${id} partially updated`, data: vehicleDto };
+  patchVehicle(id: number, createVehicleDto: CreateVehicleDto): object {
+    return {
+      message: `Vehicle ${id} partially updated`,
+      data: createVehicleDto,
+    };
   }
 
-  uploadVehicleImage(id: number, vehicleDto: VehicleDto): object {
-    return { message: `Image uploaded for vehicle ${id}`, data: vehicleDto };
+  uploadVehicleImage(id: number, createVehicleDto: CreateVehicleDto): object {
+    return {
+      message: `Image uploaded for vehicle ${id}`,
+      data: createVehicleDto,
+    };
+  }
+
+  async createVehicle(
+    createVehicleDto: CreateVehicleDto,
+    driverId: string,
+  ): Promise<Vehicle> {
+    const vehicle = this.vehicleRepository.create({
+      vehicleType: createVehicleDto.vehicleType,
+      licensePlate: createVehicleDto.licensePlate,
+      seatingCapacity: createVehicleDto.seatingCapacity,
+      driver: { id: parseInt(driverId) } as DriverEntity,
+    });
+
+    return await this.vehicleRepository.save(vehicle);
   }
 }
