@@ -15,7 +15,7 @@ import { StringValue } from 'ms';
 import { AuthGuard } from './auth/auth.guard';
 import { EmailService } from './email/email.service';
 
-console.log(process.env.JWT_SECRET);
+// console.log(process.env.JWT_SECRET);
 @Module({
   imports: [
     TypeOrmModule.forFeature([Admin, AdminProfile, Announcement]),
