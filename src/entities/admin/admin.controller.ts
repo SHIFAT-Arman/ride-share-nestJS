@@ -64,6 +64,13 @@ export class AdminController {
     };
   }
 
+  @Get('get-admin-by-profileId/:id')
+  public async getAdminByProfileId(
+    @Param('id') profileId: string,
+  ): Promise<Admin | null> {
+    return await this.adminService.getAdminByProfileId(profileId);
+  }
+
   @Post('/create')
   public async createAdmin(
     @Body() createAdminDto: CreateAdminDto,
@@ -119,12 +126,12 @@ export class AdminController {
     );
   }
 
-  // @UseGuards(AuthGuard)
-  // @Delete('delete-announcement/:id')
-  // @HttpCode(204)
-  // public async deleteAnnouncementById(@Param('id') id: string): Promise<void> {
-  //   return await this.adminService.deleteAnnouncementById(id);
-  // }
+  @UseGuards(AuthGuard)
+  @Delete('delete-announcement/:id')
+  @HttpCode(204)
+  public async deleteAnnouncementById(@Param('id') id: string): Promise<void> {
+    return await this.adminService.deleteAnnouncementById(id);
+  }
 
   @Delete('delete-admin/:id')
   @HttpCode(204)
@@ -132,6 +139,7 @@ export class AdminController {
     return await this.adminService.deleteAdminById(id);
   }
 
+  @UseGuards(AuthGuard)
   @Post('send-email')
   @HttpCode(200)
   async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<void> {

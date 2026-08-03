@@ -62,10 +62,16 @@ export class AdminService {
       where,
       skip: filter.offset,
       take: filter.limit,
-      // select: { id: true, uniqeId: true },
       order: {
         createdAt: 'ASC',
       },
+      relations: { profile: true },
+    });
+  }
+
+  public async getAdminByProfileId(profileId: string): Promise<Admin | null> {
+    return await this.adminRepository.findOne({
+      where: { profile: { id: profileId } },
       relations: { profile: true },
     });
   }
@@ -106,9 +112,9 @@ export class AdminService {
     return this.adminRepository.save(admin);
   }
 
-  public adminProfileByRole(adminRole: AdminParams): object {
-    return { role: adminRole };
-  }
+  // public adminProfileByRole(adminRole: AdminParams): object {
+  //   return { role: adminRole };
+  // }
 
   public async uploadProfilePicture(
     id: string,
@@ -174,9 +180,15 @@ export class AdminService {
     return this.announcementRepository.save(announcement);
   }
 
-  // public async deleteAnnouncementById(id: string): Promise<void> {
+  public async deleteAnnouncementById(id: string): Promise<void> {
+    const annnouncement = await this.announcementRepository.findOneBy({ id });
 
-  // }
+    if (!annnouncement) {
+      throw new NotFoundException(`Announcement with id '${id}' not found.`);
+    }
+
+    await this.announcementRepository.delete(annnouncement);
+  }
 
   public async deleteAdminById(id: string): Promise<void> {
     const admin = await this.adminRepository.findOneBy({ id });
