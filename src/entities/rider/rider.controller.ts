@@ -1,9 +1,7 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
-  Post,
   Put,
   Query,
   UploadedFile,
@@ -11,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RiderService } from './rider.service';
-import { CreateRiderDto } from './dto/create-rider.dto';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { ProfilePictureValidationPipe } from '../common/pipes/profile-picture-validation.pipe';
 import { Rider } from './rider.entity';
@@ -81,13 +78,6 @@ export class RiderController {
   @Get('/:id/saved-places')
   public getSavedPlacesById(@Param('id') id: string): object {
     return this.riderService.getSavedPlacesById(id);
-  }
-
-  @Post('/create')
-  public async createRider(
-    @Body() createRiderDto: CreateRiderDto,
-  ): Promise<Rider> {
-    return this.riderService.createRider(createRiderDto);
   }
 
   @Put('/:id/profile-picture')

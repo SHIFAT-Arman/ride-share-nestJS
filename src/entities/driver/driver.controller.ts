@@ -21,7 +21,7 @@ import { DriverEntity } from './driver.entity';
 import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
 import { Vehicle } from '../vehicle/vehicle.entity';
 import { VehicleService } from '../vehicle/vehicle.service';
-import { AuthGuard } from './auth/auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Rating } from '../rating/rating.entity';
 import { RatingService } from '../rating/rating.service';
 
@@ -41,7 +41,7 @@ export class DriverController {
     private readonly ratingService: RatingService,
   ) {}
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('create-vehicle')
   public async createVehicle(
     @Body() createVehicleDto: CreateVehicleDto,
@@ -50,7 +50,7 @@ export class DriverController {
     return this.vehicleService.createVehicle(createVehicleDto, req.user.sub);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('get-all-ratings')
   public getAllRatings(@Req() req: RequestWithUser): Promise<Rating[] | null> {
     return this.ratingService.getAllRatings(parseInt(req.user.sub));

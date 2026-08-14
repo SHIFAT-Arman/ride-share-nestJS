@@ -6,39 +6,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Admin } from './admin.entity';
 import { AdminProfile } from './adminProfile/admin-profile.entity';
 import { Announcement } from './announcement/announcement.entity';
-import { PasswordService } from './password/password.service';
-import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth/auth.service';
-import { AuthController } from './auth/auth.controller';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { StringValue } from 'ms';
-import { AuthGuard } from './auth/auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { EmailService } from './email/email.service';
 
 // console.log(process.env.JWT_SECRET);
 @Module({
   imports: [
     TypeOrmModule.forFeature([Admin, AdminProfile, Announcement]),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get<StringValue>('JWT_EXPIRES_IN'),
-        },
-      }),
-    }),
     CommonModule,
   ],
-  providers: [
-    AdminService,
-    PasswordService,
-    AuthService,
-    AuthGuard,
-    EmailService,
-  ],
-  controllers: [AdminController, AuthController],
-  // exports: [AdminService, PasswordService], // for auth- temporarily
+  providers: [AdminService, JwtAuthGuard, EmailService],
+  controllers: [AdminController],
+  exports: [AdminService],
 })
 export class AdminModule {}
