@@ -27,7 +27,7 @@ import { AdminFilterParams } from './params/find-admin.params';
 import { CreateAnnouncementDto } from './announcement/create-announcement.dto';
 import { Announcement } from './announcement/announcement.entity';
 import { FindAnnouncementParams } from './params/find-announcement.params';
-import { AuthGuard } from './auth/auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { EmailService } from './email/email.service';
 import { SendEmailDto } from './email/send-email.dto';
 
@@ -46,7 +46,7 @@ export class AdminController {
     private readonly emailService: EmailService,
   ) {}
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('admin-list')
   public async getAdminList(
     // @Query() pagination: PaginationParams,
@@ -95,7 +95,7 @@ export class AdminController {
     return this.adminService.uploadProfilePicture(id, file);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('get-announcements')
   public async getAnnouncements(
     @Query() filter: FindAnnouncementParams,
@@ -113,7 +113,7 @@ export class AdminController {
     };
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('create-announcement')
   public async createAnnouncement(
     @Body() createAnnouncementDto: CreateAnnouncementDto,
@@ -126,7 +126,7 @@ export class AdminController {
     );
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('delete-announcement/:id')
   @HttpCode(204)
   public async deleteAnnouncementById(@Param('id') id: string): Promise<void> {
@@ -139,7 +139,7 @@ export class AdminController {
     return await this.adminService.deleteAdminById(id);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('send-email')
   @HttpCode(200)
   async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<void> {

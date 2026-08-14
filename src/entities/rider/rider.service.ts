@@ -88,4 +88,7 @@ export class RiderService {
 
     return { profilePictureUrl };
   }
+  public async findOneByEmail(email: string): Promise<Rider | null> {
+    return await this.riderRepository.findOne({ where: { email } });
+  }
 }

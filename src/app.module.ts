@@ -9,6 +9,7 @@ import { VehicleModule } from './entities/vehicle/vehicle.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './entities/admin/admin.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -31,18 +32,9 @@ import { AdminModule } from './entities/admin/admin.module';
     RideModule,
     VehicleModule,
     AdminModule,
-    // AuthModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {
-  constructor() {
-    console.log('DB CONFIG CHECK:', {
-      host: process.env.DB_HOST,
-      port: process.env.DB_PORT,
-      user: process.env.DB_USER,
-      db: process.env.DB_DATABASE,
-    });
-  }
-}
+export class AppModule {}

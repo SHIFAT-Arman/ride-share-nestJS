@@ -6,15 +6,10 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-
-interface JwtPayload {
-  sub: string;
-  email: string;
-  role: string;
-}
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
+export class JwtAuthGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -25,11 +20,10 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
     try {
-      // 💡 Here the JWT secret key that's used for verifying the payload
-      // is the key that was passed in the JwtModule
+      // The JWT secret used here is the one passed to the global JwtModule.
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
+      // Attach the payload to the request so route handlers can read
+      // { sub, email, role } from request.user.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       request['user'] = payload;
     } catch {

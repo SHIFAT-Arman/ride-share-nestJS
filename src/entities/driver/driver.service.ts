@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateDriverDto, UpdateDriverDto } from './dto/create-driver.dto';
 import { DriverEntity, DriverStatus } from './driver.entity';
-import bcrypt from 'node_modules/bcryptjs';
+import bcrypt from 'bcryptjs';
 
 @Injectable()
 export class DriverService {
