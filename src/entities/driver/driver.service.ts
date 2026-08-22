@@ -1,128 +1,108 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CreateDriverDto, UpdateDriverDto } from './dto/create-driver.dto';
-import { DriverEntity, DriverStatus } from './driver.entity';
-import bcrypt from 'bcryptjs';
+import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { Driver } from './driver.entity';
+import { CreateDriverDto } from './dto/create-driver.dto';
+import { UpdateDriverDto } from './dto/update-driver.dto';
+import { FindDriverParams } from './params/find-driver.params';
+import { DriverStatus } from './enums/driver-status.enum';
+import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
+import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 
 @Injectable()
 export class DriverService {
   constructor(
-    @InjectRepository(DriverEntity)
-    private readonly driverRepo: Repository<DriverEntity>,
+    @InjectRepository(Driver)
+    private readonly driverRepository: Repository<Driver>,
+    private readonly profilePictureService: ProfilePictureService,
   ) {}
 
-  public getDrivers(): object {
-    return { id: 1, name: 'Avara', vehicle: 'Car' };
-  }
-  public getDriverById(id: string): object {
-    return { id: `${id}`, name: 'Avara', vehicle: 'Car' };
-  }
-  public getProfileById(id: string): object {
-    return {
-      id: `${id}`,
-      name: 'Avara',
-      vehicle: 'Car',
-      age: 20,
-      licenseNumber: 'ABC123',
-    };
-  }
-  public getRidesById(id: string): object {
-    return { id: `${id}`, rides: [] };
-  }
-  public getDriverRatings(id: string): object {
-    return { id: `${id}`, ratings: [{ driverId: 1, rating: 5 }] };
-  }
-  public getDriverEarnings(id: string): object {
-    return { id: `${id}`, earnings: 1000 };
-  }
-  public getDriverVehicle(id: string): object {
-    return {
-      id: `${id}`,
-      vehicle: 'Car',
-      type: 'Toyota',
-      licensePlate: 'ABC-123',
-    };
-  }
-  public getDriverStatus(id: string): object {
-    return { id: `${id}`, status: 'active' };
-  }
-  public getDriverLocation(id: string): object {
-    return { id: `${id}`, location: 'Kuril' };
-  }
-  public getNearbyDrivers(): object {
-    return { drivers: [] };
-  }
+  public async getDriverList(
+    filter: FindDriverParams,
+  ): Promise<[Driver[], number]> {
+    const where: FindOptionsWhere<Driver> = {};
 
-  public async findOneByEmail(email: string): Promise<DriverEntity | null> {
-    return this.driverRepo.findOneBy({ email });
-  }
+    if (filter.id) where.id = filter.id;
+    if (filter.status) where.status = filter.status;
+    if (filter.firstName) where.firstName = ILike(`%${filter.firstName}%`);
+    if (filter.lastName) where.lastName = ILike(`%${filter.lastName}%`);
 
-  public async createDriver(dto: CreateDriverDto): Promise<DriverEntity> {
-    const hashedPass = await bcrypt.hash(dto.password, 12);
-
-    const driver = this.driverRepo.create({
-      email: dto.email,
-      password: hashedPass,
-      fullName: dto.fullName,
-      age: dto.age,
-      status: DriverStatus.INACTIVE, // default status
+    return await this.driverRepository.findAndCount({
+      where,
+      skip: filter.offset,
+      take: filter.limit,
+      order: { createdAt: 'ASC' },
     });
-    return this.driverRepo.save(driver);
   }
 
-  public async changeStatus(
-    id: number,
-    status: DriverStatus,
-  ): Promise<DriverEntity> {
-    const driver = await this.driverRepo.findOneBy({ id });
-    if (!driver) {
-      throw new NotFoundException(`Driver with id ${id} not found`);
-    }
-    driver.status = status;
-    return this.driverRepo.save(driver);
+  public async getDriverById(id: string): Promise<Driver | null> {
+    const driver = await this.driverRepository.findOne({
+      where: { id },
+      relations: { vehicle: true },
+    });
+    if (!driver)
+      throw new NotFoundException(`Driver with id '${id}' not found.`);
+    return driver;
   }
 
-  public async findInactive(): Promise<DriverEntity[]> {
-    return this.driverRepo.find({ where: { status: DriverStatus.INACTIVE } });
-  }
-  public async findActive(): Promise<DriverEntity[]> {
-    return this.driverRepo.find({ where: { status: DriverStatus.ACTIVE } });
+  public async createDriver(createDriverDto: CreateDriverDto): Promise<Driver> {
+    const hashedPass = await bcrypt.hash(createDriverDto.password, 12);
+    const driver = this.driverRepository.create({
+      ...createDriverDto,
+      password: hashedPass,
+    });
+    return this.driverRepository.save(driver);
   }
 
-  public async findOlderThan40(): Promise<DriverEntity[]> {
-    return this.driverRepo
-      .createQueryBuilder('driver')
-      .where('driver.age > :age', { age: 40 })
-      .getMany();
-  }
-  public async findFullNameById(
-    id: number,
-  ): Promise<{ id: number; fullName: string }> {
-    const driver = await this.driverRepo.findOneBy({ id });
-    if (!driver) {
-      throw new NotFoundException(`Driver with id ${id} not found`);
-    }
-    return { id: driver.id, fullName: driver.fullName };
-  }
-  public async deleteDriver(id: number): Promise<{ message: string }> {
-    const result = await this.driverRepo.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Driver with id ${id} not found`);
-    }
-    return { message: `Driver with id ${id} deleted successfully` };
-  }
-  async updateDriver(
-    id: number,
+  public async updateDriverById(
+    id: string,
     updateDriverDto: UpdateDriverDto,
-  ): Promise<DriverEntity> {
-    const driver = await this.driverRepo.findOneBy({ id });
-    if (!driver) {
-      throw new NotFoundException(`Driver with id ${id} not found`);
-    }
+  ): Promise<Driver> {
+    const driver = await this.driverRepository.findOneBy({ id });
+    if (!driver)
+      throw new NotFoundException(`Driver with id '${id}' not found.`);
+    this.driverRepository.merge(driver, updateDriverDto);
+    return this.driverRepository.save(driver);
+  }
 
-    Object.assign(driver, updateDriverDto);
+  public async updateDriverStatus(
+    id: string,
+    status: DriverStatus,
+  ): Promise<Driver> {
+    const driver = await this.driverRepository.findOneBy({ id });
+    if (!driver)
+      throw new NotFoundException(`Driver with id '${id}' not found.`);
+    driver.status = status;
+    return this.driverRepository.save(driver);
+  }
 
-    return this.driverRepo.save(driver);
+  public async deleteDriverById(id: string): Promise<void> {
+    const driver = await this.driverRepository.findOneBy({ id });
+    if (!driver)
+      throw new NotFoundException(`Driver with id '${id}' not found.`);
+    await this.driverRepository.softRemove(driver);
+  }
+
+  public async uploadProfilePicture(
+    id: string,
+    file: Express.Multer.File,
+  ): Promise<UploadProfilePictureResponseDto> {
+    const driver = await this.driverRepository.findOneBy({ id });
+    if (!driver)
+      throw new NotFoundException(`Driver with id '${id}' not found.`);
+
+    const profilePictureUrl = await this.profilePictureService.replace(
+      driver.profilePictureUrl ?? null,
+      file,
+      'drivers',
+    );
+    this.driverRepository.merge(driver, { profilePictureUrl });
+    await this.driverRepository.save(driver);
+    return { profilePictureUrl };
+  }
+
+  public async findOneByEmail(email: string): Promise<Driver | null> {
+    return await this.driverRepository.findOneBy({ email });
   }
 }

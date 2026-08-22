@@ -7,7 +7,6 @@ import {
 } from 'class-validator';
 import { PaginationParams } from 'src/entities/common/pagination/pagination.params';
 import { AdminRole } from '../admin-role.model';
-import { AdminProfile } from '../adminProfile/admin-profile.entity';
 
 export class AdminFilterParams extends PaginationParams {
   @IsOptional()

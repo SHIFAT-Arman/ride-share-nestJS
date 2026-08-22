@@ -3,27 +3,40 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Put,
+  Query,
   Req,
-  Res,
+  UploadedFile,
   UseGuards,
-  UsePipes,
-  ValidationPipe,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 import { DriverService } from './driver.service';
-import { UpdateDriverDto, UpdateStatusDto } from './dto/create-driver.dto';
-import type { Response } from 'express';
-import { DriverEntity } from './driver.entity';
-import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
-import { Vehicle } from '../vehicle/vehicle.entity';
-import { VehicleService } from '../vehicle/vehicle.service';
+import { CreateDriverDto } from './dto/create-driver.dto';
+import {
+  UpdateDriverDto,
+  UpdateDriverStatusDto,
+} from './dto/update-driver.dto';
+import { FindDriverParams } from './params/find-driver.params';
+import { Driver } from './driver.entity';
+import { PaginationResponse } from '../common/pagination/pagination.response';
+import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
+import { ProfilePictureValidationPipe } from '../common/pipes/profile-picture-validation.pipe';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Rating } from '../rating/rating.entity';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { ADMIN_ROLES } from '../admin/admin-role.model';
+import { VehicleService } from '../vehicle/vehicle.service';
+import { Vehicle } from '../vehicle/vehicle.entity';
+import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
 import { RatingService } from '../rating/rating.service';
+import { Rating } from '../rating/rating.entity';
 
 interface RequestWithUser extends Request {
   user: {
@@ -41,8 +54,36 @@ export class DriverController {
     private readonly ratingService: RatingService,
   ) {}
 
+  // ─── Admin-only: list all ─────────────────────────────────────────────────
+
+  /** Admin only — paginated, filterable driver list. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ADMIN_ROLES)
+  @Get('driver-list')
+  public async getDriverList(
+    @Query() filter: FindDriverParams,
+  ): Promise<PaginationResponse<Driver>> {
+    const [drivers, count] = await this.driverService.getDriverList(filter);
+    return {
+      data: drivers,
+      meta: { total: count, limit: filter.limit, offset: filter.offset },
+    };
+  }
+
+  // ─── Public: registration (also called from auth module) ─────────────────
+
+  @Post()
+  public async createDriver(
+    @Body() createDriverDto: CreateDriverDto,
+  ): Promise<Driver> {
+    return this.driverService.createDriver(createDriverDto);
+  }
+
+  // ─── Authenticated driver: own resources ──────────────────────────────────
+
+  /** Creates a vehicle for the currently authenticated driver. */
   @UseGuards(JwtAuthGuard)
-  @Post('create-vehicle')
+  @Post('vehicle')
   public async createVehicle(
     @Body() createVehicleDto: CreateVehicleDto,
     @Req() req: RequestWithUser,
@@ -50,103 +91,67 @@ export class DriverController {
     return this.vehicleService.createVehicle(createVehicleDto, req.user.sub);
   }
 
+  /** Returns ratings for the currently authenticated driver. */
   @UseGuards(JwtAuthGuard)
-  @Get('get-all-ratings')
-  public getAllRatings(@Req() req: RequestWithUser): Promise<Rating[] | null> {
-    return this.ratingService.getAllRatings(parseInt(req.user.sub));
+  @Get('ratings')
+  public async getMyRatings(
+    @Req() req: RequestWithUser,
+  ): Promise<Rating[] | null> {
+    return this.ratingService.getAllRatings(req.user.sub);
   }
 
-  @Get('/status/inactive')
-  public getInactiveDrivers() {
-    return this.driverService.findInactive();
-  }
+  // ─── Self or Admin: individual driver operations ──────────────────────────
 
-  @Get('/status/active')
-  public getActiveDrivers() {
-    return this.driverService.findActive();
-  }
-
-  @Get('/filter/older-than-40')
-  public getDriversOlderThan40() {
-    return this.driverService.findOlderThan40();
-  }
-  @Get('/:id/fullname')
-  public getDriverByName(@Param('id', ParseIntPipe) id: number) {
-    return this.driverService.findFullNameById(id);
-  }
-
-  @Get()
-  public getDrivers(): object {
-    return this.driverService.getDrivers();
-  }
-  @Get('/:id')
-  public getDriverById(@Param('id') id: string): object {
+  /** Accessible by the driver themselves or any admin. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Get(':id')
+  public async getDriverById(@Param('id') id: string): Promise<Driver | null> {
     return this.driverService.getDriverById(id);
   }
-  @Get('/:id/profile')
-  public getProfileById(@Param('id') id: string): object {
-    return this.driverService.getProfileById(id);
-  }
-  @Get('/:id/rides')
-  public getRidesById(@Param('id') id: string): object {
-    return this.driverService.getRidesById(id);
-  }
-  @Get('/:id/ratings')
-  public getDriverRatings(@Param('id') id: string): object {
-    return this.driverService.getDriverRatings(id);
-  }
-  @Get('/:id/earnings')
-  public getDriverEarnings(@Param('id') id: string): object {
-    return this.driverService.getDriverEarnings(id);
-  }
-  @Get('/:id/vehicle')
-  public getDriverVehicle(@Param('id') id: string): object {
-    return this.driverService.getDriverVehicle(id);
-  }
-  @Get('/:id/status')
-  public getDriverStatus(@Param('id') id: string): object {
-    return { id: `${id}`, status: 'active' };
-  }
-  @Get('/:id/location')
-  public getDriverLocation(@Param('id') id: string): object {
-    return this.driverService.getDriverLocation(id);
-  }
-  @Get('/nearby')
-  public getNearbyDrivers(): object {
-    return { drivers: [] };
-  }
 
-  // @Post('createDriver')
-  // @UsePipes(new ValidationPipe())
-  // public createDriver(@Body() createDriverDto: CreateDriverDto): object {
-  //   return this.driverService.createDriver(createDriverDto);
-  // }
-
-  @Get('/getimage/:name')
-  getImages(@Param('name') name: string, @Res() res: Response) {
-    res.sendFile(name, { root: './uploads' });
-  }
-
-  @Patch('/:id/status')
-  @UsePipes(new ValidationPipe())
-  public changeStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateStatusDto,
-  ) {
-    return this.driverService.changeStatus(id, dto.status);
-  }
-
-  @Delete('/:id')
-  public async deleteDriver(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<{ message: string }> {
-    return this.driverService.deleteDriver(id);
-  }
-  @Put('/:id')
-  public async updateDriver(
-    @Param('id', ParseIntPipe) id: number,
+  /** Driver can update their own profile; admins can update any profile. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Patch(':id')
+  public async updateDriverById(
+    @Param('id') id: string,
     @Body() updateDriverDto: UpdateDriverDto,
-  ): Promise<DriverEntity> {
-    return this.driverService.updateDriver(id, updateDriverDto);
+  ): Promise<Driver> {
+    return this.driverService.updateDriverById(id, updateDriverDto);
+  }
+
+  /** Driver or admin can replace their profile picture. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Put(':id/profile-picture')
+  @UseInterceptors(FileInterceptor('file'))
+  public async uploadProfilePicture(
+    @Param('id') id: string,
+    @UploadedFile(new ProfilePictureValidationPipe()) file: Express.Multer.File,
+  ): Promise<UploadProfilePictureResponseDto> {
+    return this.driverService.uploadProfilePicture(id, file);
+  }
+
+  // ─── Admin-only: privileged mutations ────────────────────────────────────
+
+  /** Admin only — change a driver's status (e.g. suspend or activate). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ADMIN_ROLES)
+  @Patch(':id/status')
+  public async updateDriverStatus(
+    @Param('id') id: string,
+    @Body() updateDriverStatusDto: UpdateDriverStatusDto,
+  ): Promise<Driver> {
+    return this.driverService.updateDriverStatus(
+      id,
+      updateDriverStatusDto.status,
+    );
+  }
+
+  /** Admin only — soft-delete a driver account. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ADMIN_ROLES)
+  @Delete(':id')
+  @HttpCode(204)
+  public async deleteDriverById(@Param('id') id: string): Promise<void> {
+    return this.driverService.deleteDriverById(id);
   }
 }

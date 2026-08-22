@@ -1,7 +1,12 @@
-import { Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Column } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { VehicleType } from './enums/vehicle-type.enum';
-import { DriverEntity } from '../driver/driver.entity';
+import { Driver } from '../driver/driver.entity';
 
 @Entity()
 export class Vehicle {
@@ -17,10 +22,10 @@ export class Vehicle {
   @Column({ type: 'smallint' })
   seatingCapacity: number;
 
-  @OneToOne(() => DriverEntity, (driver) => driver.vehicle, {
+  @OneToOne(() => Driver, (driver) => driver.vehicle, {
     onDelete: 'CASCADE',
     nullable: false,
   })
   @JoinColumn()
-  driver: DriverEntity;
+  driver: Driver;
 }

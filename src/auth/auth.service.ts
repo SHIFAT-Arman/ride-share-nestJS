@@ -17,7 +17,7 @@ import { CreateRiderDto } from '../entities/rider/dto/create-rider.dto';
 import { CreateDriverDto } from '../entities/driver/dto/create-driver.dto';
 import { CreateAdminDto } from '../entities/admin/dto/create-admin.dto';
 import { Rider } from '../entities/rider/rider.entity';
-import { DriverEntity } from '../entities/driver/driver.entity';
+import { Driver } from '../entities/driver/driver.entity';
 import { Admin } from '../entities/admin/admin.entity';
 import { UserType } from './user-type.enum';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -30,7 +30,7 @@ interface NormalizedUser {
 }
 
 type RegisterBody = CreateAdminDto | CreateDriverDto | CreateRiderDto;
-type RegisteredUser = Admin | DriverEntity | Rider;
+type RegisteredUser = Admin | Driver | Rider;
 
 @Injectable()
 export class AuthService {
@@ -144,7 +144,7 @@ export class AuthService {
         const driver = await this.driverService.findOneByEmail(email);
         return driver
           ? {
-              id: String(driver.id),
+              id: driver.id,
               email: driver.email,
               password: driver.password,
               role: 'driver',
