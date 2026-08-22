@@ -1,9 +1,9 @@
 import { VehicleType } from 'src/entities/vehicle/enums/vehicle-type.enum';
 
 export class NearbyDriverDto {
-  driverId: number;
+  driverId: string;
 
-  vehicleId: number;
+  vehicleId: string;
 
   vehicleType: VehicleType;
 

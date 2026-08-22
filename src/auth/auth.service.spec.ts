@@ -13,7 +13,7 @@ import { AdminService } from '../entities/admin/admin.service';
 import { PasswordService } from '../entities/common/password.service';
 import { EmailService } from '../entities/admin/email/email.service';
 import { AdminRole } from '../entities/admin/admin-role.model';
-import { DriverStatus } from '../entities/driver/driver.entity';
+import { DriverStatus } from '../entities/driver/enums/driver-status.enum';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -98,9 +98,9 @@ describe('AuthService', () => {
       });
     });
 
-    it('converts the driver numeric id to a string sub and sets role "driver"', async () => {
+    it('sets the driver uuid as sub and sets role "driver"', async () => {
       mockDriverService.findOneByEmail.mockResolvedValue({
-        id: 7,
+        id: 'driver-uuid-1',
         email: 'john@example.com',
         password: 'hashed-password',
       });
@@ -109,7 +109,7 @@ describe('AuthService', () => {
       await authService.login('john@example.com', 'secret123', UserType.DRIVER);
 
       expect(mockJwtService.sign).toHaveBeenCalledWith({
-        sub: '7',
+        sub: 'driver-uuid-1',
         email: 'john@example.com',
         role: 'driver',
       });
@@ -192,19 +192,22 @@ describe('AuthService', () => {
     it('registers a driver', async () => {
       mockDriverService.findOneByEmail.mockResolvedValue(null);
       mockDriverService.createDriver.mockResolvedValue({
-        id: 7,
+        id: 'driver-uuid-1',
         email: 'john@example.com',
       });
 
       const driver = await authService.register(UserType.DRIVER, {
-        fullName: 'John Smith',
-        age: 30,
+        firstName: 'John',
+        lastName: 'Smith',
         email: 'john@example.com',
-        password: 'secret123',
-        status: DriverStatus.ACTIVE,
+        password: 'Secret@123',
+        phone: '01700000000',
       });
 
-      expect(driver).toEqual({ id: 7, email: 'john@example.com' });
+      expect(driver).toEqual({
+        id: 'driver-uuid-1',
+        email: 'john@example.com',
+      });
     });
 
     it('registers an admin and sends a welcome email', async () => {

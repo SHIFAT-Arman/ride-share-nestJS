@@ -15,7 +15,7 @@ import { CreateAdminDto } from '../entities/admin/dto/create-admin.dto';
 import { CreateDriverDto } from '../entities/driver/dto/create-driver.dto';
 import { CreateRiderDto } from '../entities/rider/dto/create-rider.dto';
 import { Admin } from '../entities/admin/admin.entity';
-import { DriverEntity } from '../entities/driver/driver.entity';
+import { Driver } from '../entities/driver/driver.entity';
 import { Rider } from '../entities/rider/rider.entity';
 
 @Controller('/v1/api/auth')
@@ -29,7 +29,6 @@ export class AuthController {
       loginDto.password,
       loginDto.userType,
     );
-
     return { access_token: accessToken };
   }
 
@@ -39,7 +38,7 @@ export class AuthController {
   public async register(
     @Param('userType') userType: UserType,
     @Body() body: CreateAdminDto | CreateDriverDto | CreateRiderDto,
-  ): Promise<Admin | DriverEntity | Rider> {
+  ): Promise<Admin | Driver | Rider> {
     return this.authService.register(userType, body);
   }
 }

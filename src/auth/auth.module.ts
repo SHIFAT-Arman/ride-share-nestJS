@@ -5,6 +5,8 @@ import { StringValue } from 'ms';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { SelfOrAdminGuard } from './guards/self-or-admin.guard';
 import { RiderModule } from '../entities/rider/rider.module';
 import { DriverModule } from '../entities/driver/driver.module';
 import { AdminModule } from '../entities/admin/admin.module';
@@ -29,7 +31,14 @@ import { PasswordService } from '../entities/common/password.service';
     AdminModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, PasswordService, JwtAuthGuard, EmailService],
-  exports: [JwtAuthGuard],
+  providers: [
+    AuthService,
+    PasswordService,
+    JwtAuthGuard,
+    RolesGuard,
+    SelfOrAdminGuard,
+    EmailService,
+  ],
+  exports: [JwtAuthGuard, RolesGuard, SelfOrAdminGuard],
 })
 export class AuthModule {}

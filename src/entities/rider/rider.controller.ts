@@ -1,91 +1,100 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
+  Patch,
+  Post,
   Put,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RiderService } from './rider.service';
+import { CreateRiderDto } from './dto/create-rider.dto';
+import { UpdateRiderDto } from './dto/update-rider.dto';
+import { FindRiderParams } from './params/find-rider.params';
+import { Rider } from './rider.entity';
+import { PaginationResponse } from '../common/pagination/pagination.response';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { ProfilePictureValidationPipe } from '../common/pipes/profile-picture-validation.pipe';
-import { Rider } from './rider.entity';
-// import { FindRiderParams } from './param/find-rider.params';
-import { PaginationParams } from '../common/pagination/pagination.params';
-import { PaginationResponse } from '../common/pagination/pagination.response';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { ADMIN_ROLES } from '../admin/admin-role.model';
 
-@Controller('/v1/api/rider')
+@Controller('/v1/api/riders')
 export class RiderController {
   constructor(private readonly riderService: RiderService) {}
 
-  @Get()
-  public async getAllRiders(
-    // @Query() filter: FindRiderParams,
-    @Query() pagination: PaginationParams,
-  ): Promise<PaginationResponse<Rider>> {
-    const [items, count] = await this.riderService.getAllRiders(pagination);
+  // ─── Admin-only: list all ─────────────────────────────────────────────────
 
+  /** Admin only — paginated, filterable rider list. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ADMIN_ROLES)
+  @Get('rider-list')
+  public async getRiderList(
+    @Query() filter: FindRiderParams,
+  ): Promise<PaginationResponse<Rider>> {
+    const [riders, count] = await this.riderService.getRiderList(filter);
     return {
-      data: items,
-      meta: {
-        total: count,
-        limit: pagination.limit,
-        offset: pagination.offset,
-      },
+      data: riders,
+      meta: { total: count, limit: filter.limit, offset: filter.offset },
     };
   }
 
-  @Get('/search')
-  public searchRiders(
-    @Query('id') id: string,
-    @Query('name') name: string,
-  ): object {
-    return this.riderService.searchRiderByIdAndName(id, name);
+  // ─── Public: registration (also called from auth module) ─────────────────
+
+  @Post()
+  public async createRider(
+    @Body() createRiderDto: CreateRiderDto,
+  ): Promise<Rider> {
+    return this.riderService.createRider(createRiderDto);
   }
 
-  @Get('/ratings')
-  public getRiderRatings(@Param('id') id: string): object {
-    return this.riderService.getRiderRatings(id);
-  }
+  // ─── Self or Admin: individual rider operations ───────────────────────────
 
-  @Get('/profile/:id')
-  public getRiderProfileById(@Param('id') id: string): object {
-    return this.riderService.getRiderProfileById(id);
-  }
-
-  @Get('/:id')
-  public getRiderById(@Param('id') id: string): object {
+  /** Accessible by the rider themselves or any admin. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Get(':id')
+  public async getRiderById(@Param('id') id: string): Promise<Rider | null> {
     return this.riderService.getRiderById(id);
   }
 
-  @Get('/:id/profile')
-  public getProfileById(@Param('id') id: string): object {
-    return this.riderService.getProfileById(id);
+  /** Rider can update their own profile; admins can update any profile. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Patch(':id')
+  public async updateRiderById(
+    @Param('id') id: string,
+    @Body() updateRiderDto: UpdateRiderDto,
+  ): Promise<Rider> {
+    return this.riderService.updateRiderById(id, updateRiderDto);
   }
 
-  @Get('/:id/rides')
-  public getRidesById(@Param('id') id: string): object {
-    return this.riderService.getRidesById(id);
-  }
-
-  @Get('/:id/payment-methods')
-  public getPaymentMethodsById(@Param('id') id: string): object {
-    return this.riderService.getPaymentMethodsById(id);
-  }
-
-  @Get('/:id/saved-places')
-  public getSavedPlacesById(@Param('id') id: string): object {
-    return this.riderService.getSavedPlacesById(id);
-  }
-
-  @Put('/:id/profile-picture')
+  /** Rider or admin can replace their profile picture. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
+  @Put(':id/profile-picture')
   @UseInterceptors(FileInterceptor('file'))
   public async uploadProfilePicture(
     @Param('id') id: string,
     @UploadedFile(new ProfilePictureValidationPipe()) file: Express.Multer.File,
   ): Promise<UploadProfilePictureResponseDto> {
     return this.riderService.uploadProfilePicture(id, file);
+  }
+
+  // ─── Admin-only: privileged mutations ────────────────────────────────────
+
+  /** Admin only — soft-delete a rider account. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...ADMIN_ROLES)
+  @Delete(':id')
+  @HttpCode(204)
+  public async deleteRiderById(@Param('id') id: string): Promise<void> {
+    return this.riderService.deleteRiderById(id);
   }
 }

@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { DriverEntity } from '../driver/driver.entity';
+import { Driver } from '../driver/driver.entity';
 
 @Entity()
 export class Rating {
@@ -21,9 +21,9 @@ export class Rating {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => DriverEntity, (driver) => driver.ratings, {
+  @ManyToOne(() => Driver, (driver) => driver.ratings, {
     onDelete: 'CASCADE',
     nullable: false,
   })
-  driver: DriverEntity;
+  driver: Driver;
 }

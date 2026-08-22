@@ -1,57 +1,43 @@
 import {
-  IsNotEmpty,
-  IsString,
-  IsInt,
-  Min,
-  IsOptional,
   IsEmail,
-  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
 } from 'class-validator';
-import { DriverStatus } from '../driver.entity';
 
 export class CreateDriverDto {
-  @IsNotEmpty()
   @IsString()
-  fullName!: string;
-
   @IsNotEmpty()
-  @IsInt()
-  @Min(0)
-  age!: number;
+  firstName: string;
 
-  @IsOptional()
-  @IsEnum(DriverStatus)
-  status!: DriverStatus;
-
-  @IsNotEmpty()
-  @IsEmail()
-  email!: string;
-
-  @IsNotEmpty()
   @IsString()
-  password!: string;
-
-  @IsOptional()
-  @IsString()
-  myfile?: string;
-}
-
-export class UpdateStatusDto {
   @IsNotEmpty()
-  @IsEnum(DriverStatus)
-  status!: DriverStatus;
-}
-export class UpdateDriverDto {
-  @IsOptional()
+  lastName: string;
+
+  @IsEmail({}, { message: 'Must be a valid email address.' })
+  @IsNotEmpty()
+  email: string;
+
+  @IsNotEmpty()
+  @MinLength(8, { message: 'Password must be at least 8 characters long.' })
+  @MaxLength(32, { message: 'Password cannot exceed 32 characters.' })
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&^#()_\-+=])[A-Za-z\d@$!%*?&^#()_\-+=]+$/,
+    {
+      message:
+        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+    },
+  )
+  password: string;
+
   @IsString()
-  fullName?: string;
+  @IsNotEmpty()
+  phone: string;
 
+  @IsString()
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  age?: number;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
+  profilePictureUrl?: string;
 }

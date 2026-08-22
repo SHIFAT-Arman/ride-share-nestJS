@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { AdminParams } from './admin-profile.params';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { Admin } from './admin.entity';
