@@ -3,17 +3,29 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
+  JoinColumn,
+  OneToOne,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { RiderStatus } from './enums/rider-status.enum';
 import { Expose } from 'class-transformer';
+import { RiderStatus } from './enums/rider-status.enum';
+import { User } from '../user/user.entity';
 
 @Entity()
 export class Rider {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   @Expose()
   id: string;
+
+  @OneToOne(() => User, { onDelete: 'CASCADE', nullable: false })
+  @JoinColumn({ name: 'id' })
+  user: User;
+
+  @Expose()
+  get email(): string {
+    return this.user?.email;
+  }
 
   @Column({
     type: 'varchar',
@@ -30,21 +42,6 @@ export class Rider {
   })
   @Expose()
   lastName: string;
-
-  @Column({
-    type: 'varchar',
-    length: 100,
-    nullable: false,
-  })
-  @Expose()
-  email: string;
-
-  @Column({
-    // hashing will be done in service class
-    type: 'varchar',
-    nullable: false,
-  })
-  password: string;
 
   @Column({
     type: 'varchar',
@@ -84,4 +81,9 @@ export class Rider {
 
   @DeleteDateColumn()
   deletedAt?: Date;
+
+  toJSON() {
+    const { user, ...rest } = this;
+    return { ...rest, email: user?.email };
+  }
 }

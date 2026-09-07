@@ -27,11 +27,11 @@ import { Driver } from './driver.entity';
 import { PaginationResponse } from '../common/pagination/pagination.response';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { ProfilePictureValidationPipe } from '../common/pipes/profile-picture-validation.pipe';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
+import { UserType } from 'src/auth/user-type.enum';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { ADMIN_ROLES } from '../admin/admin-role.model';
 import { VehicleService } from '../vehicle/vehicle.service';
 import { Vehicle } from '../vehicle/vehicle.entity';
 import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
@@ -58,7 +58,7 @@ export class DriverController {
 
   /** Admin only — paginated, filterable driver list. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...ADMIN_ROLES)
+  @Roles(UserType.SUPER_ADMIN)
   @Get('driver-list')
   public async getDriverList(
     @Query() filter: FindDriverParams,
@@ -134,7 +134,7 @@ export class DriverController {
 
   /** Admin only — change a driver's status (e.g. suspend or activate). */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...ADMIN_ROLES)
+  @Roles(UserType.SUPER_ADMIN)
   @Patch(':id/status')
   public async updateDriverStatus(
     @Param('id') id: string,
@@ -148,7 +148,7 @@ export class DriverController {
 
   /** Admin only — soft-delete a driver account. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...ADMIN_ROLES)
+  @Roles(UserType.SUPER_ADMIN)
   @Delete(':id')
   @HttpCode(204)
   public async deleteDriverById(@Param('id') id: string): Promise<void> {

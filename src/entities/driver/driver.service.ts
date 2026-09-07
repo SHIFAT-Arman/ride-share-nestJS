@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { Driver } from './driver.entity';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -9,6 +8,8 @@ import { FindDriverParams } from './params/find-driver.params';
 import { DriverStatus } from './enums/driver-status.enum';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
+import { UserService } from '../user/user.service';
+import { UserType } from '../../auth/user-type.enum';
 
 @Injectable()
 export class DriverService {
@@ -16,6 +17,7 @@ export class DriverService {
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
     private readonly profilePictureService: ProfilePictureService,
+    private readonly userService: UserService,
   ) {}
 
   public async getDriverList(
@@ -33,13 +35,14 @@ export class DriverService {
       skip: filter.offset,
       take: filter.limit,
       order: { createdAt: 'ASC' },
+      relations: { user: true },
     });
   }
 
   public async getDriverById(id: string): Promise<Driver | null> {
     const driver = await this.driverRepository.findOne({
       where: { id },
-      relations: { vehicle: true },
+      relations: { vehicle: true, user: true },
     });
     if (!driver)
       throw new NotFoundException(`Driver with id '${id}' not found.`);
@@ -47,10 +50,17 @@ export class DriverService {
   }
 
   public async createDriver(createDriverDto: CreateDriverDto): Promise<Driver> {
-    const hashedPass = await bcrypt.hash(createDriverDto.password, 12);
+    const { email, password, ...profile } = createDriverDto;
+    // ponytail: user row can orphan if this save fails; wrap in a transaction if that starts happening
+    const user = await this.userService.create(
+      email,
+      password,
+      UserType.DRIVER,
+    );
     const driver = this.driverRepository.create({
-      ...createDriverDto,
-      password: hashedPass,
+      ...profile,
+      id: user.id,
+      user,
     });
     return this.driverRepository.save(driver);
   }
@@ -59,18 +69,28 @@ export class DriverService {
     id: string,
     updateDriverDto: UpdateDriverDto,
   ): Promise<Driver> {
-    const driver = await this.driverRepository.findOneBy({ id });
+    const driver = await this.driverRepository.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (!driver)
       throw new NotFoundException(`Driver with id '${id}' not found.`);
-    this.driverRepository.merge(driver, updateDriverDto);
-    return this.driverRepository.save(driver);
+    const { email, ...profile } = updateDriverDto;
+    if (email) await this.userService.updateEmail(id, email);
+    this.driverRepository.merge(driver, profile);
+    const saved = await this.driverRepository.save(driver);
+    if (email) saved.user.email = email;
+    return saved;
   }
 
   public async updateDriverStatus(
     id: string,
     status: DriverStatus,
   ): Promise<Driver> {
-    const driver = await this.driverRepository.findOneBy({ id });
+    const driver = await this.driverRepository.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (!driver)
       throw new NotFoundException(`Driver with id '${id}' not found.`);
     driver.status = status;
@@ -82,6 +102,7 @@ export class DriverService {
     if (!driver)
       throw new NotFoundException(`Driver with id '${id}' not found.`);
     await this.driverRepository.softRemove(driver);
+    await this.userService.softDelete(id);
   }
 
   public async uploadProfilePicture(
@@ -100,9 +121,5 @@ export class DriverService {
     this.driverRepository.merge(driver, { profilePictureUrl });
     await this.driverRepository.save(driver);
     return { profilePictureUrl };
-  }
-
-  public async findOneByEmail(email: string): Promise<Driver | null> {
-    return await this.driverRepository.findOneBy({ email });
   }
 }

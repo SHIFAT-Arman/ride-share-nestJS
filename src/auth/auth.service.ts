@@ -1,8 +1,7 @@
 import {
   BadRequestException,
-  ConflictException,
+  ForbiddenException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -11,8 +10,8 @@ import { validate } from 'class-validator';
 import { RiderService } from '../entities/rider/rider.service';
 import { DriverService } from '../entities/driver/driver.service';
 import { AdminService } from '../entities/admin/admin.service';
-import { EmailService } from '../entities/admin/email/email.service';
 import { PasswordService } from '../entities/common/password.service';
+import { UserService } from '../entities/user/user.service';
 import { CreateRiderDto } from '../entities/rider/dto/create-rider.dto';
 import { CreateDriverDto } from '../entities/driver/dto/create-driver.dto';
 import { CreateAdminDto } from '../entities/admin/dto/create-admin.dto';
@@ -21,28 +20,22 @@ import { Driver } from '../entities/driver/driver.entity';
 import { Admin } from '../entities/admin/admin.entity';
 import { UserType } from './user-type.enum';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-
-interface NormalizedUser {
-  id: string;
-  email: string;
-  password: string;
-  role: string;
-}
+import { LoginDto } from './dto/login.dto';
+import { LoginResponse } from './dto/login.response';
+import { User } from '../entities/user/user.entity';
 
 type RegisterBody = CreateAdminDto | CreateDriverDto | CreateRiderDto;
 type RegisteredUser = Admin | Driver | Rider;
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly jwtService: JwtService,
     private readonly riderService: RiderService,
     private readonly driverService: DriverService,
     private readonly adminService: AdminService,
     private readonly passwordService: PasswordService,
-    private readonly emailService: EmailService,
+    private readonly userService: UserService,
   ) {}
 
   public async register(
@@ -52,42 +45,32 @@ export class AuthService {
     switch (userType) {
       case UserType.RIDER: {
         const dto = await this.toValidatedDto(CreateRiderDto, body);
-        if (await this.riderService.findOneByEmail(dto.email)) {
-          throw new ConflictException('Rider already exists with this email');
-        }
         return this.riderService.createRider(dto);
       }
       case UserType.DRIVER: {
         const dto = await this.toValidatedDto(CreateDriverDto, body);
-        if (await this.driverService.findOneByEmail(dto.email)) {
-          throw new ConflictException('Driver already exists with this email');
-        }
         return this.driverService.createDriver(dto);
       }
-      case UserType.ADMIN: {
+      case UserType.ADMIN:
+        throw new ForbiddenException(
+          'Admin accounts cannot be self-registered',
+        );
+      case UserType.SUPER_ADMIN:
+      case UserType.SUPPORT_AGENT: {
         const dto = await this.toValidatedDto(CreateAdminDto, body);
-        if (await this.adminService.findOneByEmail(dto.email)) {
-          throw new ConflictException('Admin already exists with this email');
-        }
-        const admin = await this.adminService.createAdmin(dto);
-        await this.sendWelcomeEmail(admin);
-        return admin;
+        return this.adminService.createAdmin(dto);
       }
       default:
         throw new BadRequestException('Invalid userType');
     }
   }
 
-  public async login(
-    email: string,
-    password: string,
-    userType: UserType,
-  ): Promise<string> {
-    const user = await this.findUserByType(email, userType);
+  public async login(loginDto: LoginDto): Promise<LoginResponse> {
+    const user = await this.userService.findByEmail(loginDto.email, true);
 
     if (
       !user ||
-      !(await this.passwordService.verify(password, user.password))
+      !(await this.passwordService.verify(loginDto.password, user.password))
     ) {
       throw new UnauthorizedException('Invalid Credentials');
     }
@@ -112,67 +95,15 @@ export class AuthService {
     return dto;
   }
 
-  private async sendWelcomeEmail(admin: Admin): Promise<void> {
-    try {
-      await this.emailService.sendEmail({
-        recipients: [admin.email],
-        subject: 'Welcome!',
-        html: `<p>Hi ${admin.profile.firstName}, your account has been created.</p> <br> Please Login.`,
-      });
-    } catch (error) {
-      this.logger.log('Error sending email:', error);
-    }
-  }
-
-  private async findUserByType(
-    email: string,
-    userType: UserType,
-  ): Promise<NormalizedUser | null> {
-    switch (userType) {
-      case UserType.RIDER: {
-        const rider = await this.riderService.findOneByEmail(email);
-        return rider
-          ? {
-              id: rider.id,
-              email: rider.email,
-              password: rider.password,
-              role: 'rider',
-            }
-          : null;
-      }
-      case UserType.DRIVER: {
-        const driver = await this.driverService.findOneByEmail(email);
-        return driver
-          ? {
-              id: driver.id,
-              email: driver.email,
-              password: driver.password,
-              role: 'driver',
-            }
-          : null;
-      }
-      case UserType.ADMIN: {
-        const admin = await this.adminService.findOneByEmail(email);
-        return admin
-          ? {
-              id: admin.id,
-              email: admin.email,
-              password: admin.password,
-              role: admin.role,
-            }
-          : null;
-      }
-      default:
-        return null;
-    }
-  }
-
-  private generateToken(user: NormalizedUser): string {
+  private generateToken(user: User): LoginResponse {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
     };
-    return this.jwtService.sign(payload);
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '10m' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+    };
   }
 }

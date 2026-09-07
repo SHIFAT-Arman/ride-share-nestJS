@@ -6,7 +6,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { PaginationParams } from 'src/entities/common/pagination/pagination.params';
-import { AdminRole } from '../admin-role.model';
+import { UserType } from 'src/auth/user-type.enum';
 
 export class AdminFilterParams extends PaginationParams {
   @IsOptional()
@@ -29,6 +29,6 @@ export class AdminFilterParams extends PaginationParams {
   lastName: string;
 
   @IsOptional()
-  @IsEnum(AdminRole)
-  role: AdminRole;
+  @IsEnum(UserType)
+  role: UserType;
 }

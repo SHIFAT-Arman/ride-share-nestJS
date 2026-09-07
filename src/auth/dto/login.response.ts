@@ -1,3 +1,4 @@
 export interface LoginResponse {
-  access_token: string;
+  accessToken: string; // for Bruno
+  refreshToken: string; // for Bruno
 }

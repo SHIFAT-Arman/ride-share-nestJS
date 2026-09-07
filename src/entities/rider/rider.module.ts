@@ -4,12 +4,13 @@ import { RiderController } from './rider.controller';
 import { RiderService } from './rider.service';
 import { Rider } from './rider.entity';
 import { CommonModule } from '../common/common.module';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { UserModule } from '../user/user.module';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Rider]), CommonModule],
+  imports: [TypeOrmModule.forFeature([Rider]), CommonModule, UserModule],
   controllers: [RiderController],
   providers: [RiderService, JwtAuthGuard, RolesGuard, SelfOrAdminGuard],
   exports: [RiderService],

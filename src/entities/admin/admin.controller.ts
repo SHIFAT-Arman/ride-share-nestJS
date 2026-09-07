@@ -27,16 +27,17 @@ import { AdminFilterParams } from './params/find-admin.params';
 import { CreateAnnouncementDto } from './announcement/create-announcement.dto';
 import { Announcement } from './announcement/announcement.entity';
 import { FindAnnouncementParams } from './params/find-announcement.params';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { SelfOrSuperAdminGuard } from '../../auth/guards/self-or-super-admin.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 import { EmailService } from './email/email.service';
 import { SendEmailDto } from './email/send-email.dto';
+import { UserType } from 'src/auth/user-type.enum';
+import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
 
 interface RequestWithUser extends Request {
-  user: {
-    sub: string;
-    email: string;
-    role: string;
-  };
+  user: JwtPayload;
 }
 
 @Controller('/v1/api/admin')
@@ -46,7 +47,8 @@ export class AdminController {
     private readonly emailService: EmailService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.SUPER_ADMIN)
   @Get('admin-list')
   public async getAdminList(
     // @Query() pagination: PaginationParams,
@@ -64,13 +66,17 @@ export class AdminController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('get-admin-by-profileId/:id')
   public async getAdminByProfileId(
     @Param('id') profileId: string,
+    @Req() req: RequestWithUser,
   ): Promise<Admin | null> {
-    return await this.adminService.getAdminByProfileId(profileId);
+    return await this.adminService.getAdminByProfileId(profileId, req.user);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.SUPER_ADMIN)
   @Post('/create')
   public async createAdmin(
     @Body() createAdminDto: CreateAdminDto,
@@ -78,14 +84,29 @@ export class AdminController {
     return this.adminService.createAdmin(createAdminDto);
   }
 
+  @UseGuards(JwtAuthGuard, SelfOrSuperAdminGuard)
   @Patch('update-admin/:id')
   public async updateAdminById(
     @Param('id') id: string,
     @Body() updateAdminDto: UpdateAdminDto,
+    @Req() req: RequestWithUser,
   ): Promise<Admin | null> {
-    return await this.adminService.updateAdminById(id, updateAdminDto);
+    return await this.adminService.updateAdminById(
+      id,
+      updateAdminDto,
+      req.user,
+    );
   }
 
+  @UseGuards(JwtAuthGuard, SelfOrSuperAdminGuard)
+  @Get('/:id/profile-picture')
+  public async getProfilePicture(
+    @Param('id') id: string,
+  ): Promise<UploadProfilePictureResponseDto> {
+    return await this.adminService.getProfilePictureUrl(id);
+  }
+
+  @UseGuards(JwtAuthGuard, SelfOrSuperAdminGuard)
   @Put('/:id/profile-picture')
   @UseInterceptors(FileInterceptor('file'))
   public async uploadProfilePicture(
@@ -133,10 +154,15 @@ export class AdminController {
     return await this.adminService.deleteAnnouncementById(id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.SUPER_ADMIN)
   @Delete('delete-admin/:id')
   @HttpCode(204)
-  public async deleteAdminById(@Param('id') id: string): Promise<void> {
-    return await this.adminService.deleteAdminById(id);
+  public async deleteAdminById(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<void> {
+    return await this.adminService.deleteAdminById(id, req.user);
   }
 
   @UseGuards(JwtAuthGuard)

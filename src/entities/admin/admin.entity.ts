@@ -1,62 +1,36 @@
 import {
-  Column,
   CreateDateColumn,
-  DeleteDateColumn,
   Entity,
+  JoinColumn,
   OneToMany,
   OneToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { AdminRole } from './admin-role.model';
-// import { randomUUID } from 'crypto';
 import { AdminProfile } from './adminProfile/admin-profile.entity';
 import { Expose } from 'class-transformer';
 import { Announcement } from './announcement/announcement.entity';
+import { User } from '../user/user.entity';
+import { UserType } from 'src/auth/user-type.enum';
 
 @Entity()
 export class Admin {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   id: string;
 
-  // @Column({
-  //   type: 'varchar',
-  //   length: 150,
-  //   nullable: false,
-  //   unique: true,
-  //   name: 'uniqeId',
-  //   // generated: 'uuid', compile error
-  // })
-  // // @Generated('uuid')
-  // uniqeId: string;
+  @OneToOne(() => User, { onDelete: 'CASCADE', nullable: false })
+  @JoinColumn({ name: 'id' })
+  user: User;
 
-  // @BeforeInsert()
-  // generateUniqueId() {
-  //   this.uniqeId = randomUUID();
-  // }
-
-  @Column({
-    type: 'varchar',
-    length: 100,
-    nullable: false,
-    // unique: true,
-  })
   @Expose()
-  email: string;
+  get email(): string {
+    return this.user?.email;
+  }
 
-  @Column({
-    // hashing will be done in service class
-    type: 'varchar',
-    nullable: false,
-  })
-  password: string;
-
-  @Column({
-    type: 'varchar',
-    enum: AdminRole,
-    default: AdminRole.ADMIN,
-  })
-  role: AdminRole;
+  @Expose()
+  get role(): UserType {
+    return this.user?.role;
+  }
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -68,10 +42,6 @@ export class Admin {
   })
   updatedAt: Date;
 
-  @DeleteDateColumn()
-  deletedAt?: Date;
-
-  // @OneToOne(() => AdminProfile, (profile) => profile.admin, { cascade: true })
   @OneToOne(() => AdminProfile, (profile) => profile.admin, { cascade: true })
   @Expose()
   profile: AdminProfile;
@@ -80,4 +50,9 @@ export class Admin {
     cascade: true,
   })
   announcements: Announcement[];
+
+  toJSON() {
+    const { user, ...rest } = this;
+    return { ...rest, email: user?.email, role: user?.role };
+  }
 }

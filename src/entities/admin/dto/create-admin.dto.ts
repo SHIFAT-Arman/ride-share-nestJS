@@ -10,8 +10,8 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { AdminRole } from '../admin-role.model';
 import { Type } from 'class-transformer';
+import { UserType } from 'src/auth/user-type.enum';
 
 export class CreateAdminDto {
   // Admin table
@@ -36,8 +36,8 @@ export class CreateAdminDto {
   password: string;
 
   @IsNotEmpty()
-  @IsEnum(AdminRole)
-  role: AdminRole;
+  @IsEnum(UserType)
+  role: UserType;
 
   // AdminProfile table
   @IsString()
