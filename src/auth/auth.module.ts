@@ -4,17 +4,21 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { StringValue } from 'ms';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { SelfOrAdminGuard } from './guards/self-or-admin.guard';
+import { SelfOrSuperAdminGuard } from './guards/self-or-super-admin.guard';
 import { RiderModule } from '../entities/rider/rider.module';
 import { DriverModule } from '../entities/driver/driver.module';
 import { AdminModule } from '../entities/admin/admin.module';
-import { EmailService } from '../entities/admin/email/email.service';
-import { PasswordService } from '../entities/common/password.service';
+import { UserModule } from '../entities/user/user.module';
+import { APP_GUARD } from '@nestjs/core';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
+    PassportModule,
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],
@@ -26,19 +30,27 @@ import { PasswordService } from '../entities/common/password.service';
         },
       }),
     }),
+    // JwtModule.register({ secret: process.env.JWT_SECRET }),
     RiderModule,
     DriverModule,
     AdminModule,
+    UserModule,
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
-    PasswordService,
-    JwtAuthGuard,
-    RolesGuard,
+    JwtStrategy,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
     SelfOrAdminGuard,
-    EmailService,
+    SelfOrSuperAdminGuard,
   ],
-  exports: [JwtAuthGuard, RolesGuard, SelfOrAdminGuard],
+  exports: [SelfOrAdminGuard, SelfOrSuperAdminGuard],
 })
 export class AuthModule {}

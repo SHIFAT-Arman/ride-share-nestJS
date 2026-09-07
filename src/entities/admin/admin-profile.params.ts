@@ -1,7 +1,7 @@
 import { IsEnum } from 'class-validator';
-import { AdminRole } from './admin-role.model';
+import { UserType } from 'src/auth/user-type.enum';
 
 export class AdminParams {
-  @IsEnum(AdminRole)
-  role: AdminRole;
+  @IsEnum(UserType)
+  role: UserType;
 }

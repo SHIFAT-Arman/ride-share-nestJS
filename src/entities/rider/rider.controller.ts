@@ -22,11 +22,11 @@ import { Rider } from './rider.entity';
 import { PaginationResponse } from '../common/pagination/pagination.response';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { ProfilePictureValidationPipe } from '../common/pipes/profile-picture-validation.pipe';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { ADMIN_ROLES } from '../admin/admin-role.model';
+import { UserType } from 'src/auth/user-type.enum';
 
 @Controller('/v1/api/riders')
 export class RiderController {
@@ -36,7 +36,7 @@ export class RiderController {
 
   /** Admin only — paginated, filterable rider list. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...ADMIN_ROLES)
+  @Roles(UserType.SUPER_ADMIN)
   @Get('rider-list')
   public async getRiderList(
     @Query() filter: FindRiderParams,
@@ -91,7 +91,7 @@ export class RiderController {
 
   /** Admin only — soft-delete a rider account. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(...ADMIN_ROLES)
+  @Roles(UserType.SUPER_ADMIN)
   @Delete(':id')
   @HttpCode(204)
   public async deleteRiderById(@Param('id') id: string): Promise<void> {

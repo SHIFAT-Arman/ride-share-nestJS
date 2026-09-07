@@ -1,18 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
 import { Admin } from './admin.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-// import { PaginationParams } from '../common/pagination/pagination.params';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { AdminFilterParams } from './params/find-admin.params';
 import { AdminProfile } from './adminProfile/admin-profile.entity';
 import { CreateAnnouncementDto } from './announcement/create-announcement.dto';
 import { Announcement } from './announcement/announcement.entity';
 import { FindAnnouncementParams } from './params/find-announcement.params';
+
+import { UserService } from '../user/user.service';
+import { UserType } from 'src/auth/user-type.enum';
+
+type Actor = { sub: string; role: UserType };
 
 @Injectable()
 export class AdminService {
@@ -27,6 +34,7 @@ export class AdminService {
     private readonly announcementRepository: Repository<Announcement>,
 
     private readonly profilePictureService: ProfilePictureService,
+    private readonly userService: UserService,
   ) {}
 
   public async getAdminList(
@@ -49,7 +57,7 @@ export class AdminService {
       profileWhere.lastName = ILike(`%${filter.lastName}%`);
     }
     if (filter.role) {
-      where.role = filter.role;
+      where.user = { role: filter.role };
     }
     if (filter.id) {
       where.id = filter.id;
@@ -64,24 +72,38 @@ export class AdminService {
       order: {
         createdAt: 'ASC',
       },
-      relations: { profile: true },
+      relations: { profile: true, user: true },
     });
   }
 
-  public async getAdminByProfileId(profileId: string): Promise<Admin | null> {
-    return await this.adminRepository.findOne({
+  public async getAdminByProfileId(
+    profileId: string,
+    actor: Actor,
+  ): Promise<Admin> {
+    const admin = await this.adminRepository.findOne({
       where: { profile: { id: profileId } },
-      relations: { profile: true },
+      relations: { profile: true, user: true },
     });
+    if (!admin) {
+      throw new NotFoundException(
+        `Admin with profile id '${profileId}' not found.`,
+      );
+    }
+    this.assertSelfOrSuperAdmin(admin.id, actor);
+    return admin;
   }
 
   public async createAdmin(createAdminDto: CreateAdminDto): Promise<Admin> {
-    const hashedPass = await bcrypt.hash(createAdminDto.password, 12);
+    // ponytail: user row can orphan if this save fails; wrap in a transaction if that starts happening
+    const user = await this.userService.create(
+      createAdminDto.email,
+      createAdminDto.password,
+      createAdminDto.role,
+    );
 
     const admin = this.adminRepository.create({
-      email: createAdminDto.email,
-      password: hashedPass,
-      role: createAdminDto.role,
+      id: user.id,
+      user,
       profile: {
         firstName: createAdminDto.firstName,
         lastName: createAdminDto.lastName,
@@ -92,28 +114,48 @@ export class AdminService {
       },
     });
     return this.adminRepository.save(admin);
-  } //follow repo pattern to avoid error
+  }
 
   public async updateAdminById(
     id: string,
     updateAdminDto: UpdateAdminDto,
+    actor: Actor,
   ): Promise<Admin | null> {
     const admin = await this.adminRepository.findOne({
       where: { id },
-      relations: { profile: true },
+      relations: { profile: true, user: true },
     });
-    // console.log(admin);
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
 
-    this.adminRepository.merge(admin, updateAdminDto);
-    this.adminProfileRepository.merge(admin.profile, updateAdminDto);
+    const patch: UpdateAdminDto = { ...updateAdminDto };
+    if (actor.role !== UserType.SUPER_ADMIN) {
+      delete patch.role;
+    }
+    if (patch.role) {
+      await this.userService.updateRole(id, patch.role);
+      admin.user.role = patch.role;
+      delete patch.role;
+    }
+
+    this.adminProfileRepository.merge(admin.profile, patch);
 
     return this.adminRepository.save(admin);
   }
 
-  // public adminProfileByRole(adminRole: AdminParams): object {
-  //   return { role: adminRole };
+  // public adminProfileByRole(UserType: AdminParams): object {
+  //   return { role: UserType };
   // }
+
+  public async getProfilePictureUrl(
+    id: string,
+  ): Promise<UploadProfilePictureResponseDto> {
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+      relations: { profile: true },
+    });
+    if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
+    return { profilePictureUrl: admin.profile.profilePictureUrl };
+  }
 
   public async uploadProfilePicture(
     id: string,
@@ -189,14 +231,18 @@ export class AdminService {
     await this.announcementRepository.delete(annnouncement);
   }
 
-  public async deleteAdminById(id: string): Promise<void> {
+  public async deleteAdminById(id: string, actor: Actor): Promise<void> {
+    if (id === actor.sub) {
+      throw new ForbiddenException('You cannot delete your own account.');
+    }
     const admin = await this.adminRepository.findOneBy({ id });
-    // console.log(admin);
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
-    await this.adminRepository.remove(admin);
+    await this.userService.remove(id);
   }
 
-  public async findOneByEmail(email: string): Promise<Admin | null> {
-    return await this.adminRepository.findOneBy({ email });
+  private assertSelfOrSuperAdmin(adminId: string, actor: Actor): void {
+    if (actor.role !== UserType.SUPER_ADMIN && actor.sub !== adminId) {
+      throw new ForbiddenException('You can only access your own resources.');
+    }
   }
 }

@@ -3,21 +3,32 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   OneToMany,
   OneToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Expose } from 'class-transformer';
 import { DriverStatus } from './enums/driver-status.enum';
 import { Vehicle } from '../vehicle/vehicle.entity';
 import { Rating } from '../rating/rating.entity';
+import { User } from '../user/user.entity';
 
 @Entity('driver')
 export class Driver {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn('uuid')
   @Expose()
   id: string;
+
+  @OneToOne(() => User, { onDelete: 'CASCADE', nullable: false })
+  @JoinColumn({ name: 'id' })
+  user: User;
+
+  @Expose()
+  get email(): string {
+    return this.user?.email;
+  }
 
   @Column({ type: 'varchar', length: 50, nullable: false })
   @Expose()
@@ -26,13 +37,6 @@ export class Driver {
   @Column({ type: 'varchar', length: 50, nullable: false })
   @Expose()
   lastName: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: false })
-  @Expose()
-  email: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  password: string;
 
   @Column({ type: 'varchar', length: 20, nullable: false })
   @Expose()
@@ -69,4 +73,9 @@ export class Driver {
   @OneToMany(() => Rating, (rating) => rating.driver, { cascade: true })
   @Expose()
   ratings: Rating[];
+
+  toJSON() {
+    const { user, ...rest } = this;
+    return { ...rest, email: user?.email };
+  }
 }

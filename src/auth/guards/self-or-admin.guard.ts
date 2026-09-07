@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { AdminRole } from '../../entities/admin/admin-role.model';
+import { UserType } from '../../auth/user-type.enum';
 
 /**
  * Allows access when the authenticated user either:
@@ -16,7 +16,7 @@ import { AdminRole } from '../../entities/admin/admin-role.model';
  */
 @Injectable()
 export class SelfOrAdminGuard implements CanActivate {
-  private readonly adminRoles = new Set<string>(Object.values(AdminRole));
+  private readonly adminRoles = new Set<string>(Object.values(UserType));
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
