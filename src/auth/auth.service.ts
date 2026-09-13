@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -18,14 +17,13 @@ import { CreateAdminDto } from '../entities/admin/dto/create-admin.dto';
 import { Rider } from '../entities/rider/rider.entity';
 import { Driver } from '../entities/driver/driver.entity';
 import { Admin } from '../entities/admin/admin.entity';
-import { UserType } from './user-type.enum';
+
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponse } from './dto/login.response';
 import { User } from '../entities/user/user.entity';
 
 type RegisterBody = CreateAdminDto | CreateDriverDto | CreateRiderDto;
-type RegisteredUser = Admin | Driver | Rider;
 
 @Injectable()
 export class AuthService {
@@ -38,31 +36,19 @@ export class AuthService {
     private readonly userService: UserService,
   ) {}
 
-  public async register(
-    userType: UserType,
-    body: RegisterBody,
-  ): Promise<RegisteredUser> {
-    switch (userType) {
-      case UserType.RIDER: {
-        const dto = await this.toValidatedDto(CreateRiderDto, body);
-        return this.riderService.createRider(dto);
-      }
-      case UserType.DRIVER: {
-        const dto = await this.toValidatedDto(CreateDriverDto, body);
-        return this.driverService.createDriver(dto);
-      }
-      case UserType.ADMIN:
-        throw new ForbiddenException(
-          'Admin accounts cannot be self-registered',
-        );
-      case UserType.SUPER_ADMIN:
-      case UserType.SUPPORT_AGENT: {
-        const dto = await this.toValidatedDto(CreateAdminDto, body);
-        return this.adminService.createAdmin(dto);
-      }
-      default:
-        throw new BadRequestException('Invalid userType');
-    }
+  public async registerRider(body: CreateRiderDto): Promise<Rider> {
+    const dto = await this.toValidatedDto(CreateRiderDto, body);
+    return this.riderService.createRider(dto);
+  }
+
+  public async registerDriver(body: CreateDriverDto): Promise<Driver> {
+    const dto = await this.toValidatedDto(CreateDriverDto, body);
+    return this.driverService.createDriver(dto);
+  }
+
+  public async registerAdmin(body: CreateAdminDto): Promise<Admin> {
+    const dto = await this.toValidatedDto(CreateAdminDto, body);
+    return this.adminService.createAdmin(dto);
   }
 
   public async login(loginDto: LoginDto): Promise<LoginResponse> {

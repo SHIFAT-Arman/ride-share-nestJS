@@ -9,7 +9,7 @@ export const ROLES_KEY = 'roles';
  *
  * @example
  * @UseGuards(JwtAuthGuard, RolesGuard)
- * @Roles(AdminRole.ADMIN, AdminRole.SUPER_ADMIN)
+ * @Roles(UserType.ADMIN)
  * @Get()
  */
 export const Roles = (...roles: UserType[]) => SetMetadata(ROLES_KEY, roles);

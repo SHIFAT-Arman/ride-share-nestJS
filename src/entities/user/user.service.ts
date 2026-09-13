@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -30,6 +31,30 @@ export class UserService {
     }
 
     return qb.getOne();
+  }
+
+  public async changePassword(
+    id: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException(`User with id '${id}' not found.`);
+    }
+
+    if (!(await this.passwordService.verify(oldPassword, user.password))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    await this.userRepository.update(id, {
+      password: await this.passwordService.hash(newPassword),
+    });
   }
 
   public async create(

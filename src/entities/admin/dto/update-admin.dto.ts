@@ -1,15 +1,43 @@
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
-import { UserType } from 'src/auth/user-type.enum';
+import {
+  IsDateString,
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateAdminDto {
   @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
   country?: string;
 
   @IsOptional()
-  @IsDateString()
-  joiningDate: string;
+  @IsString()
+  phoneNumber?: string;
 
   @IsOptional()
-  @IsEnum(UserType)
-  role?: UserType;
+  @IsDateString()
+  joiningDate?: string;
+
+  @IsOptional()
+  @IsString()
+  profilePictureUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  age?: number;
 }

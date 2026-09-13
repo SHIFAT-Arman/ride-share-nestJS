@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Admin } from '../admin.entity';
+import { UserType } from 'src/auth/user-type.enum';
 
 @Entity()
 export class Announcement {
@@ -26,6 +27,10 @@ export class Announcement {
     nullable: false,
   })
   content: string;
+
+  // Comma-separated list in DB, e.g. "rider,driver,admin"
+  @Column({ type: 'simple-array', nullable: true })
+  targetRoles: UserType[];
 
   @CreateDateColumn({
     type: 'timestamp',

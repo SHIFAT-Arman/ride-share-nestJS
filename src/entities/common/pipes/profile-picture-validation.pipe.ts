@@ -5,8 +5,8 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png'];
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 @Injectable()
 export class ProfilePictureValidationPipe implements PipeTransform<Express.Multer.File> {
@@ -22,7 +22,7 @@ export class ProfilePictureValidationPipe implements PipeTransform<Express.Multe
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new BadRequestException('File size exceeds the 5 MB limit.');
+      throw new BadRequestException('File size exceeds the 2 MB limit.');
     }
 
     return file;

@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { SelfOrAdminGuard } from './guards/self-or-admin.guard';
-import { SelfOrSuperAdminGuard } from './guards/self-or-super-admin.guard';
+
 import { RiderModule } from '../entities/rider/rider.module';
 import { DriverModule } from '../entities/driver/driver.module';
 import { AdminModule } from '../entities/admin/admin.module';
@@ -49,8 +49,7 @@ import { JwtStrategy } from './jwt.strategy';
       useClass: RolesGuard,
     },
     SelfOrAdminGuard,
-    SelfOrSuperAdminGuard,
   ],
-  exports: [SelfOrAdminGuard, SelfOrSuperAdminGuard],
+  exports: [SelfOrAdminGuard],
 })
 export class AuthModule {}

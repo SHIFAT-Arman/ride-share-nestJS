@@ -58,7 +58,7 @@ export class DriverController {
 
   /** Admin only — paginated, filterable driver list. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.SUPER_ADMIN)
+  @Roles(UserType.ADMIN)
   @Get('driver-list')
   public async getDriverList(
     @Query() filter: FindDriverParams,
@@ -122,7 +122,7 @@ export class DriverController {
   /** Driver or admin can replace their profile picture. */
   @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   @Put(':id/profile-picture')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
   public async uploadProfilePicture(
     @Param('id') id: string,
     @UploadedFile(new ProfilePictureValidationPipe()) file: Express.Multer.File,
@@ -134,7 +134,7 @@ export class DriverController {
 
   /** Admin only — change a driver's status (e.g. suspend or activate). */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.SUPER_ADMIN)
+  @Roles(UserType.ADMIN)
   @Patch(':id/status')
   public async updateDriverStatus(
     @Param('id') id: string,
@@ -148,7 +148,7 @@ export class DriverController {
 
   /** Admin only — soft-delete a driver account. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.SUPER_ADMIN)
+  @Roles(UserType.ADMIN)
   @Delete(':id')
   @HttpCode(204)
   public async deleteDriverById(@Param('id') id: string): Promise<void> {

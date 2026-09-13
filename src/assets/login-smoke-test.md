@@ -4,10 +4,12 @@ A **smoke test** is a quick, manual check that the important parts of your app a
 
 This guide tests the new unified auth:
 
-| Endpoint | Method | What it does |
-|---|---|---|
-| `/v1/api/auth/register/:userType` | POST | Creates a user (`rider`, `driver`, or `admin`) |
-| `/v1/api/auth/login` | POST | Logs in and returns a JWT access token |
+| Endpoint                       | Method | What it does                           |
+| ------------------------------ | ------ | -------------------------------------- |
+| `/v1/api/auth/register`        | POST   | Creates a rider (public)               |
+| `/v1/api/auth/register/admin`  | POST   | Creates an admin (admin-only)          |
+| `/v1/api/auth/register/driver` | POST   | Creates a driver (rider/admin)         |
+| `/v1/api/auth/login`           | POST   | Logs in and returns a JWT access token |
 
 ---
 
@@ -132,13 +134,13 @@ echo $TOKEN | cut -d. -f2 | base64 -d
 
 **What you should see for each user type:**
 
-| User | Expected `role` value |
-|---|---|
-| rider | `"rider"` |
-| driver | `"driver"` |
-| admin | `"ADMIN"` (or `"SUPER_ADMIN"` / `"SUPPORT_AGENT"` if you registered with that role) |
+| User   | Expected `role` value |
+| ------ | --------------------- |
+| rider  | `"rider"`             |
+| driver | `"driver"`            |
+| admin  | `"admin"`             |
 
-This is how the app knows who you are: **rider/driver/admin roles are different values**, and an admin's role comes from the `role` field used at registration.
+This is how the app knows who you are: **rider/driver/admin roles are different values**.
 
 ---
 
@@ -171,13 +173,13 @@ curl -X GET http://localhost:3000/v1/api/admin/admin-list
 
 These should all fail gracefully:
 
-| Test | Command (body shown) | Expected |
-|---|---|---|
-| Wrong password | `{"email":"jane@example.com","password":"wrongpass","userType":"rider"}` | `401` — `"Invalid Credentials"` |
-| Unknown email | `{"email":"nobody@example.com","password":"secret123","userType":"rider"}` | `401` — `"Invalid Credentials"` |
-| Bad userType | `{"email":"jane@example.com","password":"secret123","userType":"robot"}` | `400` — validation error on `userType` |
-| Register duplicate | (register the same rider twice) | `409` — `"... already exists with this email"` |
-| Protected route, no token | `GET /v1/api/admin/admin-list` | `401 Unauthorized` |
+| Test                      | Command (body shown)                                                       | Expected                                       |
+| ------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| Wrong password            | `{"email":"jane@example.com","password":"wrongpass","userType":"rider"}`   | `401` — `"Invalid Credentials"`                |
+| Unknown email             | `{"email":"nobody@example.com","password":"secret123","userType":"rider"}` | `401` — `"Invalid Credentials"`                |
+| Bad userType              | `{"email":"jane@example.com","password":"secret123","userType":"robot"}`   | `400` — validation error on `userType`         |
+| Register duplicate        | (register the same rider twice)                                            | `409` — `"... already exists with this email"` |
+| Protected route, no token | `GET /v1/api/admin/admin-list`                                             | `401 Unauthorized`                             |
 
 Note: for security, a wrong password and an unknown email return the **same** message (`Invalid Credentials`) so attackers can't tell which one failed.
 
@@ -185,15 +187,15 @@ Note: for security, a wrong password and an unknown email return the **same** me
 
 ## 8. Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `ECONNREFUSED` when starting | Postgres isn't running | Start Postgres, or fix `DB_HOST`/`DB_PORT` in `.env` |
-| `Authentication failed` on startup | Wrong `DB_USER`/`DB_PASSWORD` | Check the values in `.env` |
-| `curl: (7) Failed to connect` | Server isn't running | Make sure `npm run start:dev` is still running |
-| `404` on a route | Wrong URL/prefix | All routes start with `/v1/api/...` |
-| `400` validation errors | Body doesn't match the DTO | Check required fields (e.g. admin needs `role`; admin password needs 1 upper, 1 lower, 1 number, 1 special char) |
-| Token decodes but shows no `exp` | `JWT_EXPIRES_IN` not set in `.env` | Add it, e.g. `JWT_EXPIRES_IN=1d` |
-| Admin register succeeded but no email arrived | SMTP not configured | Expected — the app logs the email error and continues |
+| Symptom                                       | Likely cause                       | Fix                                                                                                              |
+| --------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ECONNREFUSED` when starting                  | Postgres isn't running             | Start Postgres, or fix `DB_HOST`/`DB_PORT` in `.env`                                                             |
+| `Authentication failed` on startup            | Wrong `DB_USER`/`DB_PASSWORD`      | Check the values in `.env`                                                                                       |
+| `curl: (7) Failed to connect`                 | Server isn't running               | Make sure `npm run start:dev` is still running                                                                   |
+| `404` on a route                              | Wrong URL/prefix                   | All routes start with `/v1/api/...`                                                                              |
+| `400` validation errors                       | Body doesn't match the DTO         | Check required fields (e.g. admin needs `role`; admin password needs 1 upper, 1 lower, 1 number, 1 special char) |
+| Token decodes but shows no `exp`              | `JWT_EXPIRES_IN` not set in `.env` | Add it, e.g. `JWT_EXPIRES_IN=1d`                                                                                 |
+| Admin register succeeded but no email arrived | SMTP not configured                | Expected — the app logs the email error and continues                                                            |
 
 ---
 

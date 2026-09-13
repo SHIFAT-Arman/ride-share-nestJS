@@ -36,7 +36,7 @@ export class RiderController {
 
   /** Admin only — paginated, filterable rider list. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.SUPER_ADMIN)
+  @Roles(UserType.ADMIN)
   @Get('rider-list')
   public async getRiderList(
     @Query() filter: FindRiderParams,
@@ -79,7 +79,7 @@ export class RiderController {
   /** Rider or admin can replace their profile picture. */
   @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   @Put(':id/profile-picture')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
   public async uploadProfilePicture(
     @Param('id') id: string,
     @UploadedFile(new ProfilePictureValidationPipe()) file: Express.Multer.File,
@@ -91,7 +91,7 @@ export class RiderController {
 
   /** Admin only — soft-delete a rider account. */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.SUPER_ADMIN)
+  @Roles(UserType.ADMIN)
   @Delete(':id')
   @HttpCode(204)
   public async deleteRiderById(@Param('id') id: string): Promise<void> {

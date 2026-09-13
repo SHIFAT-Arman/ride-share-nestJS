@@ -26,6 +26,9 @@ export class CreateRiderDto {
   @IsNotEmpty()
   phone: string;
 
+  @IsOptional()
+  age?: number;
+
   // status: RiderStatus; // not in DTO, because this is not API concern, rather business logic, so goes into entity
 
   @IsString()

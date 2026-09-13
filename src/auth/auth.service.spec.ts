@@ -2,18 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
-import { UserType } from './user-type.enum';
+
 import { RiderService } from '../entities/rider/rider.service';
 import { DriverService } from '../entities/driver/driver.service';
 import { AdminService } from '../entities/admin/admin.service';
 import { PasswordService } from '../entities/common/password.service';
 import { UserService } from '../entities/user/user.service';
-import { AdminRole } from '../entities/admin/admin-role.model';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -116,7 +114,7 @@ describe('AuthService', () => {
         email: 'jane@example.com',
       });
 
-      const rider = await authService.register(UserType.RIDER, {
+      const rider = await authService.registerRider({
         firstName: 'Jane',
         lastName: 'Doe',
         email: 'jane@example.com',
@@ -139,7 +137,7 @@ describe('AuthService', () => {
         email: 'john@example.com',
       });
 
-      const driver = await authService.register(UserType.DRIVER, {
+      const driver = await authService.registerDriver({
         firstName: 'John',
         lastName: 'Smith',
         email: 'john@example.com',
@@ -153,17 +151,24 @@ describe('AuthService', () => {
       });
     });
 
-    it('rejects public admin registration', async () => {
-      await expect(
-        authService.register(UserType.ADMIN, {
-          email: 'boss@example.com',
-          password: 'Secret123!',
-          role: AdminRole.ADMIN,
-          firstName: 'Boss',
-          lastName: 'Admin',
-        }),
-      ).rejects.toThrow(ForbiddenException);
-      expect(mockAdminService.createAdmin).not.toHaveBeenCalled();
+    it('registers an admin', async () => {
+      mockAdminService.createAdmin.mockResolvedValue({
+        id: 'user-uuid-2',
+        email: 'boss@example.com',
+      });
+
+      const admin = await authService.registerAdmin({
+        email: 'boss@example.com',
+        password: 'Secret123!',
+        firstName: 'Boss',
+        lastName: 'Admin',
+      });
+
+      expect(admin).toEqual({
+        id: 'user-uuid-2',
+        email: 'boss@example.com',
+      });
+      expect(mockAdminService.createAdmin).toHaveBeenCalled();
     });
 
     it('propagates ConflictException when the email is already registered', async () => {
@@ -172,7 +177,7 @@ describe('AuthService', () => {
       );
 
       await expect(
-        authService.register(UserType.RIDER, {
+        authService.registerRider({
           firstName: 'Jane',
           lastName: 'Doe',
           email: 'jane@example.com',
@@ -183,15 +188,15 @@ describe('AuthService', () => {
     });
 
     it('throws BadRequestException when required fields are missing', async () => {
-      await expect(
-        authService.register(UserType.RIDER, {} as never),
-      ).rejects.toThrow(BadRequestException);
+      await expect(authService.registerRider({} as never)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockRiderService.createRider).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException when the body contains unknown fields', async () => {
       await expect(
-        authService.register(UserType.RIDER, {
+        authService.registerRider({
           firstName: 'Jane',
           lastName: 'Doe',
           email: 'jane@example.com',
@@ -199,12 +204,6 @@ describe('AuthService', () => {
           phone: '+8801711111111',
           hackerField: true,
         } as never),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws BadRequestException for an unknown userType', async () => {
-      await expect(
-        authService.register('robot' as UserType, {} as never),
       ).rejects.toThrow(BadRequestException);
     });
   });
