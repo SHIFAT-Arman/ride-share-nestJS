@@ -9,18 +9,23 @@ import { UserType } from '../../auth/user-type.enum';
 /**
  * Allows access when the authenticated user either:
  *  - owns the resource  (request.user.sub === request.params.id), OR
- *  - holds any admin role.
+ *  - is an admin.
  *
  * Must run after JwtAuthGuard so request.user is already populated.
  * Expects the route param identifying the owner to be named "id".
  */
+interface GuardRequest {
+  user?: { sub: string; role: string };
+  params?: { id?: string };
+}
+
 @Injectable()
 export class SelfOrAdminGuard implements CanActivate {
-  private readonly adminRoles = new Set<string>(Object.values(UserType));
+  private readonly adminRoles = new Set<string>([UserType.ADMIN]);
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    const user: { sub: string; role: string } | undefined = request.user;
+    const request = context.switchToHttp().getRequest<GuardRequest>();
+    const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('Access denied.');

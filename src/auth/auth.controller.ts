@@ -2,10 +2,12 @@ import {
   Body,
   ClassSerializerInterceptor,
   Controller,
-  Param,
+  Get,
   Post,
+  Req,
   Res,
   SerializeOptions,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -17,12 +19,20 @@ import { CreateRiderDto } from '../entities/rider/dto/create-rider.dto';
 import { Admin } from '../entities/admin/admin.entity';
 import { Driver } from '../entities/driver/driver.entity';
 import { Rider } from '../entities/rider/rider.entity';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorator';
+import { Roles } from './decorators/roles.decorator';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('/v1/api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @UseGuards(JwtAuthGuard) //skipped rolesguard
+  @Get('me')
+  public me(@Req() req: Request) {
+    return req.user;
+  }
 
   @Public()
   @Post('login')
@@ -36,7 +46,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 60 * 60 * 1000, // 1 hour
     });
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
@@ -64,13 +74,26 @@ export class AuthController {
   }
 
   @Public()
-  @Post('register/:userType')
+  @Post('register')
   @UseInterceptors(ClassSerializerInterceptor)
   @SerializeOptions({ strategy: 'excludeAll' })
-  public async register(
-    @Param('userType') userType: UserType,
-    @Body() body: CreateAdminDto | CreateDriverDto | CreateRiderDto,
-  ): Promise<Admin | Driver | Rider> {
-    return this.authService.register(userType, body);
+  public async registerRider(@Body() body: CreateRiderDto): Promise<Rider> {
+    return this.authService.registerRider(body);
+  }
+
+  @Post('register/admin')
+  @Roles(UserType.ADMIN)
+  @UseInterceptors(ClassSerializerInterceptor)
+  @SerializeOptions({ strategy: 'excludeAll' })
+  public async registerAdmin(@Body() body: CreateAdminDto): Promise<Admin> {
+    return this.authService.registerAdmin(body);
+  }
+
+  @Post('register/driver')
+  @Roles(UserType.RIDER, UserType.ADMIN)
+  @UseInterceptors(ClassSerializerInterceptor)
+  @SerializeOptions({ strategy: 'excludeAll' })
+  public async registerDriver(@Body() body: CreateDriverDto): Promise<Driver> {
+    return this.authService.registerDriver(body);
   }
 }

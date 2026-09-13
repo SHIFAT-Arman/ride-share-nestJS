@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
@@ -10,14 +11,16 @@ import { Admin } from './admin.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AdminFilterParams } from './params/find-admin.params';
-import { AdminProfile } from './adminProfile/admin-profile.entity';
 import { CreateAnnouncementDto } from './announcement/create-announcement.dto';
 import { Announcement } from './announcement/announcement.entity';
 import { FindAnnouncementParams } from './params/find-announcement.params';
 
 import { UserService } from '../user/user.service';
 import { UserType } from 'src/auth/user-type.enum';
+import { join } from 'path';
+import { PusherService } from '../common/pusher.service';
 
 type Actor = { sub: string; role: UserType };
 
@@ -27,34 +30,30 @@ export class AdminService {
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
 
-    @InjectRepository(AdminProfile)
-    private readonly adminProfileRepository: Repository<AdminProfile>,
-
     @InjectRepository(Announcement)
     private readonly announcementRepository: Repository<Announcement>,
 
     private readonly profilePictureService: ProfilePictureService,
     private readonly userService: UserService,
+    private readonly pusherService: PusherService,
   ) {}
 
   public async getAdminList(
-    // pagination: PaginationParams,
     filter: AdminFilterParams,
   ): Promise<[Admin[], number]> {
-    const profileWhere: FindOptionsWhere<AdminProfile> = {};
     const where: FindOptionsWhere<Admin> = {};
 
     if (filter.joiningDate) {
-      profileWhere.joiningDate = filter.joiningDate;
+      where.joiningDate = filter.joiningDate;
     }
     if (filter.country) {
-      profileWhere.country = ILike(`%${filter.country}%`);
+      where.country = ILike(`%${filter.country}%`);
     }
     if (filter.firstName) {
-      profileWhere.firstName = ILike(`%${filter.firstName}%`);
+      where.firstName = ILike(`%${filter.firstName}%`);
     }
     if (filter.lastName) {
-      profileWhere.lastName = ILike(`%${filter.lastName}%`);
+      where.lastName = ILike(`%${filter.lastName}%`);
     }
     if (filter.role) {
       where.user = { role: filter.role };
@@ -63,8 +62,6 @@ export class AdminService {
       where.id = filter.id;
     }
 
-    where.profile = profileWhere;
-
     return await this.adminRepository.findAndCount({
       where,
       skip: filter.offset,
@@ -72,46 +69,30 @@ export class AdminService {
       order: {
         createdAt: 'ASC',
       },
-      relations: { profile: true, user: true },
+      relations: { user: true },
     });
   }
 
-  public async getAdminByProfileId(
-    profileId: string,
-    actor: Actor,
-  ): Promise<Admin> {
+  public async getAdminById(id: string): Promise<Admin> {
     const admin = await this.adminRepository.findOne({
-      where: { profile: { id: profileId } },
-      relations: { profile: true, user: true },
+      where: { id },
+      relations: { user: true },
     });
     if (!admin) {
-      throw new NotFoundException(
-        `Admin with profile id '${profileId}' not found.`,
-      );
+      throw new NotFoundException(`Admin with id '${id}' not found.`);
     }
-    this.assertSelfOrSuperAdmin(admin.id, actor);
     return admin;
   }
 
   public async createAdmin(createAdminDto: CreateAdminDto): Promise<Admin> {
+    const { email, password, ...profile } = createAdminDto;
     // ponytail: user row can orphan if this save fails; wrap in a transaction if that starts happening
-    const user = await this.userService.create(
-      createAdminDto.email,
-      createAdminDto.password,
-      createAdminDto.role,
-    );
+    const user = await this.userService.create(email, password, UserType.ADMIN);
 
     const admin = this.adminRepository.create({
+      ...profile,
       id: user.id,
       user,
-      profile: {
-        firstName: createAdminDto.firstName,
-        lastName: createAdminDto.lastName,
-        country: createAdminDto.country,
-        joiningDate: createAdminDto.joiningDate,
-        profilePictureUrl: createAdminDto.profilePictureUrl,
-        age: createAdminDto.age,
-      },
     });
     return this.adminRepository.save(admin);
   }
@@ -119,74 +100,70 @@ export class AdminService {
   public async updateAdminById(
     id: string,
     updateAdminDto: UpdateAdminDto,
-    actor: Actor,
-  ): Promise<Admin | null> {
+  ): Promise<Admin> {
     const admin = await this.adminRepository.findOne({
       where: { id },
-      relations: { profile: true, user: true },
+      relations: { user: true },
     });
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
 
-    const patch: UpdateAdminDto = { ...updateAdminDto };
-    if (actor.role !== UserType.SUPER_ADMIN) {
-      delete patch.role;
-    }
-    if (patch.role) {
-      await this.userService.updateRole(id, patch.role);
-      admin.user.role = patch.role;
-      delete patch.role;
-    }
+    const { email, ...profile } = updateAdminDto;
+    if (email) await this.userService.updateEmail(id, email);
+    this.adminRepository.merge(admin, profile);
 
-    this.adminProfileRepository.merge(admin.profile, patch);
-
-    return this.adminRepository.save(admin);
+    const saved = await this.adminRepository.save(admin);
+    if (email) saved.user.email = email;
+    return saved;
   }
 
-  // public adminProfileByRole(UserType: AdminParams): object {
-  //   return { role: UserType };
-  // }
-
-  public async getProfilePictureUrl(
+  public async changePassword(
     id: string,
-  ): Promise<UploadProfilePictureResponseDto> {
-    const admin = await this.adminRepository.findOne({
-      where: { id },
-      relations: { profile: true },
-    });
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
+    const admin = await this.adminRepository.findOneBy({ id });
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
-    return { profilePictureUrl: admin.profile.profilePictureUrl };
+
+    await this.userService.changePassword(
+      id,
+      changePasswordDto.oldPassword,
+      changePasswordDto.newPassword,
+    );
+  }
+
+  public async getProfilePictureUrl(id: string): Promise<string> {
+    const admin = await this.adminRepository.findOneBy({ id });
+    if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
+
+    const filePath = join(process.cwd(), admin.profilePictureUrl);
+    return filePath;
   }
 
   public async uploadProfilePicture(
     id: string,
     file: Express.Multer.File,
   ): Promise<UploadProfilePictureResponseDto> {
-    const admin = await this.adminRepository.findOne({
-      where: { id },
-      relations: { profile: true },
-    });
-    console.log(admin);
+    const admin = await this.adminRepository.findOneBy({ id });
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
 
     const profilePictureUrl = await this.profilePictureService.replace(
-      admin.profile.profilePictureUrl,
+      admin.profilePictureUrl ?? null,
       file,
       'admins',
     );
-    // await this.adminProfileRepository.update({ id }, { profilePictureUrl });
-    // using merge
-    this.adminProfileRepository.merge(admin.profile, {
+    this.adminRepository.merge(admin, {
       profilePictureUrl,
     });
-    return this.adminProfileRepository.save(admin.profile);
+    await this.adminRepository.save(admin);
+    return { profilePictureUrl };
   }
 
   public async getAnnouncements(
     filter: FindAnnouncementParams,
   ): Promise<[Announcement[], number]> {
     const where: FindOptionsWhere<Announcement> = {};
-    if (filter.adminProfileId) {
-      where.id = filter.adminProfileId;
+    const adminId = filter.adminId ?? filter.adminProfileId;
+    if (adminId) {
+      where.admin = { id: adminId } as Admin;
     }
 
     if (filter.title) {
@@ -212,13 +189,32 @@ export class AdminService {
     createAnnouncementDto: CreateAnnouncementDto,
     adminId: string,
   ): Promise<Announcement> {
-    // console.log(createAnnouncementDto);
     const announcement = this.announcementRepository.create({
       title: createAnnouncementDto.title,
       content: createAnnouncementDto.content,
+      targetRoles: createAnnouncementDto.targetRoles,
       admin: { id: adminId } as Admin,
     });
-    return this.announcementRepository.save(announcement);
+    const saved = await this.announcementRepository.save(announcement);
+
+    const payload = {
+      id: saved.id,
+      title: saved.title,
+      content: saved.content,
+      createdAt: saved.createdAt,
+      targetRoles: saved.targetRoles,
+    };
+
+    // Send to each selected role channel, e.g. rider-notifications
+    for (const role of saved.targetRoles) {
+      await this.pusherService.trigger(
+        `${role}-notifications`,
+        'new-announcement',
+        payload,
+      );
+    }
+
+    return saved;
   }
 
   public async deleteAnnouncementById(id: string): Promise<void> {
@@ -228,7 +224,7 @@ export class AdminService {
       throw new NotFoundException(`Announcement with id '${id}' not found.`);
     }
 
-    await this.announcementRepository.delete(annnouncement);
+    await this.announcementRepository.remove(annnouncement);
   }
 
   public async deleteAdminById(id: string, actor: Actor): Promise<void> {
@@ -240,8 +236,8 @@ export class AdminService {
     await this.userService.remove(id);
   }
 
-  private assertSelfOrSuperAdmin(adminId: string, actor: Actor): void {
-    if (actor.role !== UserType.SUPER_ADMIN && actor.sub !== adminId) {
+  private assertSelfOrAdmin(adminId: string, actor: Actor): void {
+    if (actor.role !== UserType.ADMIN && actor.sub !== adminId) {
       throw new ForbiddenException('You can only access your own resources.');
     }
   }

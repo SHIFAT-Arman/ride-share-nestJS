@@ -4,6 +4,11 @@ import { PaginationParams } from 'src/entities/common/pagination/pagination.para
 export class FindAnnouncementParams extends PaginationParams {
   @IsOptional()
   @IsUUID()
+  adminId: string;
+
+  // ponytail: compatibility alias for old clients; remove once clients send adminId
+  @IsOptional()
+  @IsUUID()
   adminProfileId: string;
 
   @IsOptional()

@@ -51,6 +51,10 @@ export class Rider {
   @Expose()
   phone: string;
 
+  @Column({ type: 'smallint', nullable: true })
+  @Expose()
+  age?: number;
+
   @Column({
     type: 'enum',
     enum: RiderStatus,

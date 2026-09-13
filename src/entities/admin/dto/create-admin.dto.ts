@@ -1,6 +1,5 @@
 import {
   IsEmail,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,10 +10,8 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { UserType } from 'src/auth/user-type.enum';
 
 export class CreateAdminDto {
-  // Admin table
   @IsEmail({}, { message: 'Please provide a valid email address.' })
   @IsNotEmpty()
   email: string;
@@ -35,11 +32,6 @@ export class CreateAdminDto {
   )
   password: string;
 
-  @IsNotEmpty()
-  @IsEnum(UserType)
-  role: UserType;
-
-  // AdminProfile table
   @IsString()
   @IsNotEmpty()
   firstName: string;
@@ -51,6 +43,10 @@ export class CreateAdminDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
 
   @IsOptional()
   @IsDateString()
