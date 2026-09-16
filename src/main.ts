@@ -1,10 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -13,15 +16,24 @@ async function bootstrap() {
     }),
   );
 
-  // cookie parser as global middleware
   app.use(cookieParser());
 
-  // CORS as global middleware
+  if (config.get<string>('TRUST_PROXY') === 'true') {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
+
+  const origins = config
+    .getOrThrow<string>('FRONTEND_URL')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: 'http://localhost:3001',
+    origin: origins.length === 1 ? origins[0] : origins,
     methods: 'GET,HEAD,POST,PUT,PATCH,DELETE',
     credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3000);
+
+  await app.listen(config.get<string>('PORT') ?? 3000);
 }
 bootstrap();

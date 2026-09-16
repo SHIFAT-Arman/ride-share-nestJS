@@ -53,10 +53,6 @@ export class CreateAdminDto {
   joiningDate?: string;
 
   @IsOptional()
-  @IsString()
-  profilePictureUrl?: string;
-
-  @IsOptional()
   @IsInt()
   @Type(() => Number)
   age?: number;

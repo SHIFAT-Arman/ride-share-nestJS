@@ -32,7 +32,7 @@ import { TokenPairService } from './token-pair.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: configService.get<StringValue>('JWT_EXPIRES_IN') ?? '15m',
         },

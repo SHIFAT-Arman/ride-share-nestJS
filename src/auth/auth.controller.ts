@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { UserType } from './user-type.enum';
@@ -33,7 +34,10 @@ import { RefreshPrincipal } from './token-pair.service';
 
 @Controller('/v1/api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @UseGuards(JwtAuthGuard) //skipped rolesguard
   @Get('me')
@@ -50,7 +54,13 @@ export class AuthController {
     const { accessToken, refreshToken, role, sub, email } =
       await this.authService.login(loginDto);
 
-    setAuthCookies(res, accessToken, refreshToken, this.authService.cookieMaxAges());
+    setAuthCookies(
+      res,
+      accessToken,
+      refreshToken,
+      this.config,
+      this.authService.cookieMaxAges(),
+    );
     return { message: 'Logged In', role, sub, email };
   }
 
@@ -65,7 +75,13 @@ export class AuthController {
     const { accessToken, refreshToken } =
       await this.authService.refresh(principal);
 
-    setAuthCookies(res, accessToken, refreshToken, this.authService.cookieMaxAges());
+    setAuthCookies(
+      res,
+      accessToken,
+      refreshToken,
+      this.config,
+      this.authService.cookieMaxAges(),
+    );
     return { message: 'Refreshed' };
   }
 
@@ -77,7 +93,7 @@ export class AuthController {
   ) {
     const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined;
     await this.authService.logout(raw);
-    clearAuthCookies(res);
+    clearAuthCookies(res, this.config);
     return { message: 'Logged Out' };
   }
 

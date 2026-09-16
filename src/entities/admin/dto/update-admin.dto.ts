@@ -33,10 +33,6 @@ export class UpdateAdminDto {
   joiningDate?: string;
 
   @IsOptional()
-  @IsString()
-  profilePictureUrl?: string;
-
-  @IsOptional()
   @IsInt()
   @Type(() => Number)
   age?: number;
