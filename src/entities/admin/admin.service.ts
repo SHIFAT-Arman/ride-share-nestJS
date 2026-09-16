@@ -19,7 +19,7 @@ import { FindAnnouncementParams } from './params/find-announcement.params';
 
 import { UserService } from '../user/user.service';
 import { UserType } from 'src/auth/user-type.enum';
-import { join } from 'path';
+import { resolveUploadPath } from '../common/storage/local-storage.service';
 import { PusherService } from '../common/pusher.service';
 
 type Actor = { sub: string; role: UserType };
@@ -134,7 +134,7 @@ export class AdminService {
     const admin = await this.adminRepository.findOneBy({ id });
     if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
 
-    const filePath = join(process.cwd(), admin.profilePictureUrl);
+    const filePath = resolveUploadPath(admin.profilePictureUrl);
     return filePath;
   }
 

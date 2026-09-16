@@ -36,8 +36,4 @@ export class CreateDriverDto {
   @IsString()
   @IsNotEmpty()
   phone: string;
-
-  @IsString()
-  @IsOptional()
-  profilePictureUrl?: string;
 }

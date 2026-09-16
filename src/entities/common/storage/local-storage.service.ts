@@ -1,9 +1,19 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { IStorageService } from './storage.interface';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { unlink, writeFile } from 'fs/promises';
-import { extname, join } from 'path';
+import { extname, join, resolve, sep } from 'path';
+
+/** Resolve a stored upload URL under cwd/uploads; reject path traversal. */
+export function resolveUploadPath(fileUrl: string): string {
+  const uploadRoot = resolve(process.cwd(), 'uploads');
+  const resolved = resolve(process.cwd(), fileUrl.replace(/^\/+/, ''));
+  if (resolved !== uploadRoot && !resolved.startsWith(uploadRoot + sep)) {
+    throw new BadRequestException('Invalid file path');
+  }
+  return resolved;
+}
 
 @Injectable()
 export class StorageService implements IStorageService {
@@ -32,7 +42,7 @@ export class StorageService implements IStorageService {
   }
 
   async delete(fileUrl: string): Promise<void> {
-    const filePath = join(process.cwd(), fileUrl);
+    const filePath = resolveUploadPath(fileUrl);
     try {
       await unlink(filePath);
     } catch {

@@ -32,8 +32,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { EmailService } from './email/email.service';
-import { SendEmailDto } from './email/send-email.dto';
+// import { EmailService } from './email/email.service';
+// import { SendEmailDto } from './email/send-email.dto';
 import { UserType } from 'src/auth/user-type.enum';
 import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
 import { createReadStream } from 'fs';
@@ -46,7 +46,7 @@ interface RequestWithUser extends Request {
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly emailService: EmailService,
+    // private readonly emailService: EmailService,
   ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -121,7 +121,9 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   @Put('/:id/profile-picture')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }),
+  )
   public async uploadProfilePicture(
     @Param('id') id: string,
     @UploadedFile(new ProfilePictureValidationPipe()) file: Express.Multer.File,
@@ -180,10 +182,12 @@ export class AdminController {
     return await this.adminService.deleteAdminById(id, req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('send-email')
-  @HttpCode(200)
-  async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<void> {
-    await this.emailService.sendEmail(sendEmailDto);
-  }
+  // Email sending disabled for now — restore with EmailService + Roles(ADMIN)
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(UserType.ADMIN)
+  // @Post('send-email')
+  // @HttpCode(200)
+  // async sendEmail(@Body() sendEmailDto: SendEmailDto): Promise<void> {
+  //   await this.emailService.sendEmail(sendEmailDto);
+  // }
 }

@@ -9,7 +9,7 @@ import { Announcement } from './announcement/announcement.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
-import { EmailService } from './email/email.service';
+// import { EmailService } from './email/email.service';
 
 @Module({
   imports: [
@@ -22,7 +22,7 @@ import { EmailService } from './email/email.service';
     JwtAuthGuard,
     RolesGuard,
     SelfOrAdminGuard,
-    EmailService,
+    // EmailService,
   ],
   controllers: [AdminController],
   exports: [AdminService],

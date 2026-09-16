@@ -30,8 +30,4 @@ export class CreateRiderDto {
   age?: number;
 
   // status: RiderStatus; // not in DTO, because this is not API concern, rather business logic, so goes into entity
-
-  @IsString()
-  @IsOptional()
-  profilePictureUrl?: string;
 }
