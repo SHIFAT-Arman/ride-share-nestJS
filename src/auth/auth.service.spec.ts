@@ -4,7 +4,6 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 
 import { RiderService } from '../entities/rider/rider.service';
@@ -12,11 +11,18 @@ import { DriverService } from '../entities/driver/driver.service';
 import { AdminService } from '../entities/admin/admin.service';
 import { PasswordService } from '../entities/common/password.service';
 import { UserService } from '../entities/user/user.service';
+import { TokenPairService } from './token-pair.service';
 
 describe('AuthService', () => {
   let authService: AuthService;
 
-  const mockJwtService = { sign: jest.fn() };
+  const mockTokenPairs = {
+    issue: jest.fn(),
+    rotate: jest.fn(),
+    revokeRawRefreshToken: jest.fn(),
+    accessMaxAgeMs: jest.fn().mockReturnValue(900000),
+    refreshMaxAgeMs: jest.fn().mockReturnValue(604800000),
+  };
   const mockPasswordService = { verify: jest.fn() };
   const mockUserService = { findByEmail: jest.fn() };
   const mockRiderService = { createRider: jest.fn() };
@@ -29,7 +35,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: JwtService, useValue: mockJwtService },
+        { provide: TokenPairService, useValue: mockTokenPairs },
         { provide: PasswordService, useValue: mockPasswordService },
         { provide: UserService, useValue: mockUserService },
         { provide: RiderService, useValue: mockRiderService },
@@ -37,12 +43,11 @@ describe('AuthService', () => {
         { provide: AdminService, useValue: mockAdminService },
       ],
     }).compile();
-
     authService = module.get<AuthService>(AuthService);
   });
 
   describe('login', () => {
-    it('looks up only the users table and signs a token', async () => {
+    it('looks up only the users table and issues a token pair', async () => {
       mockUserService.findByEmail.mockResolvedValue({
         id: 'user-uuid-1',
         email: 'jane@example.com',
@@ -50,7 +55,13 @@ describe('AuthService', () => {
         role: 'rider',
       });
       mockPasswordService.verify.mockResolvedValue(true);
-      mockJwtService.sign.mockReturnValue('signed-token');
+      mockTokenPairs.issue.mockResolvedValue({
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        role: 'rider',
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
+      });
 
       const result = await authService.login({
         email: 'jane@example.com',
@@ -58,22 +69,18 @@ describe('AuthService', () => {
       });
 
       expect(result).toEqual({
-        accessToken: 'signed-token',
-        refreshToken: 'signed-token',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        role: 'rider',
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
       });
       expect(mockUserService.findByEmail).toHaveBeenCalledWith(
         'jane@example.com',
         true,
       );
+      expect(mockTokenPairs.issue).toHaveBeenCalled();
       expect(mockRiderService.createRider).not.toHaveBeenCalled();
-      expect(mockJwtService.sign).toHaveBeenCalledWith(
-        {
-          sub: 'user-uuid-1',
-          email: 'jane@example.com',
-          role: 'rider',
-        },
-        { expiresIn: '10m' },
-      );
     });
 
     it('throws UnauthorizedException when the user does not exist', async () => {
@@ -85,7 +92,7 @@ describe('AuthService', () => {
           password: 'secret123',
         }),
       ).rejects.toThrow(UnauthorizedException);
-      expect(mockJwtService.sign).not.toHaveBeenCalled();
+      expect(mockTokenPairs.issue).not.toHaveBeenCalled();
     });
 
     it('throws UnauthorizedException when the password is wrong', async () => {
@@ -103,7 +110,7 @@ describe('AuthService', () => {
           password: 'wrong-password',
         }),
       ).rejects.toThrow(UnauthorizedException);
-      expect(mockJwtService.sign).not.toHaveBeenCalled();
+      expect(mockTokenPairs.issue).not.toHaveBeenCalled();
     });
   });
 

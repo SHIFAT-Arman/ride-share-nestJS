@@ -23,6 +23,13 @@ import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RefreshAuthGuard } from './guards/refresh-auth.guard';
+import {
+  REFRESH_COOKIE,
+  clearAuthCookies,
+  setAuthCookies,
+} from './cookie-names';
+import { RefreshPrincipal } from './token-pair.service';
 
 @Controller('/v1/api/auth')
 export class AuthController {
@@ -40,36 +47,37 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<object> {
-    const { accessToken, refreshToken } =
+    const { accessToken, refreshToken, role, sub, email } =
       await this.authService.login(loginDto);
-    res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 1000, // 1 hour
-    });
-    res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-    return { message: 'Logged In' };
+
+    setAuthCookies(res, accessToken, refreshToken, this.authService.cookieMaxAges());
+    return { message: 'Logged In', role, sub, email };
+  }
+
+  @Public()
+  @UseGuards(RefreshAuthGuard)
+  @Post('refresh')
+  public async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<object> {
+    const principal = req.user as RefreshPrincipal;
+    const { accessToken, refreshToken } =
+      await this.authService.refresh(principal);
+
+    setAuthCookies(res, accessToken, refreshToken, this.authService.cookieMaxAges());
+    return { message: 'Refreshed' };
   }
 
   @Public()
   @Post('logout')
-  public logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
-    res.clearCookie('refresh_token', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-    });
+  public async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+    await this.authService.logout(raw);
+    clearAuthCookies(res);
     return { message: 'Logged Out' };
   }
 
