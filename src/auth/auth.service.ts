@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { RiderService } from '../entities/rider/rider.service';
@@ -17,19 +18,17 @@ import { Rider } from '../entities/rider/rider.entity';
 import { Driver } from '../entities/driver/driver.entity';
 import { Admin } from '../entities/admin/admin.entity';
 
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponse } from './dto/login.response';
-import {
-  RefreshPrincipal,
-  TokenPairService,
-} from './token-pair.service';
+import { User } from '../entities/user/user.entity';
 
 type RegisterBody = CreateAdminDto | CreateDriverDto | CreateRiderDto;
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly tokenPairs: TokenPairService,
+    private readonly jwtService: JwtService,
     private readonly riderService: RiderService,
     private readonly driverService: DriverService,
     private readonly adminService: AdminService,
@@ -62,22 +61,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Credentials');
     }
 
-    return this.tokenPairs.issue(user);
-  }
-
-  public async refresh(principal: RefreshPrincipal): Promise<LoginResponse> {
-    return this.tokenPairs.rotate(principal);
-  }
-
-  public async logout(rawRefreshToken: string | undefined): Promise<void> {
-    await this.tokenPairs.revokeRawRefreshToken(rawRefreshToken);
-  }
-
-  public cookieMaxAges() {
-    return {
-      accessMs: this.tokenPairs.accessMaxAgeMs(),
-      refreshMs: this.tokenPairs.refreshMaxAgeMs(),
-    };
+    return this.generateToken(user);
   }
 
   // Validate the body against the DTO of the requested user type, mirroring
@@ -95,5 +79,17 @@ export class AuthService {
       throw new BadRequestException(errors);
     }
     return dto;
+  }
+
+  private generateToken(user: User): LoginResponse {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '10m' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+    };
   }
 }
