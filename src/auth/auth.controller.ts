@@ -25,6 +25,7 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
+import { CsrfOriginGuard } from './guards/csrf-origin.guard';
 import {
   REFRESH_COOKIE,
   clearAuthCookies,
@@ -46,6 +47,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CsrfOriginGuard)
   @Post('login')
   public async login(
     @Body() loginDto: LoginDto,
@@ -65,7 +67,7 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(RefreshAuthGuard)
+  @UseGuards(CsrfOriginGuard, RefreshAuthGuard)
   @Post('refresh')
   public async refresh(
     @Req() req: Request,
@@ -86,6 +88,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CsrfOriginGuard)
   @Post('logout')
   public async logout(
     @Req() req: Request,
