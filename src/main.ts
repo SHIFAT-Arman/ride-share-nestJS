@@ -3,8 +3,15 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
+import {
+  assertCookieEnv,
+  frontendOriginAllowlist,
+} from './frontend-origins';
 
 async function bootstrap() {
+  assertCookieEnv();
+  const allowlist = frontendOriginAllowlist();
+
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
@@ -22,15 +29,24 @@ async function bootstrap() {
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
   }
 
-  const origins = config
-    .getOrThrow<string>('FRONTEND_URL')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-
   app.enableCors({
-    origin: origins.length === 1 ? origins[0] : origins,
-    methods: 'GET,HEAD,POST,PUT,PATCH,DELETE',
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean | string) => void,
+    ) => {
+      // Non-browser / same-origin clients omit Origin
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (allowlist.has(origin)) {
+        callback(null, origin);
+        return;
+      }
+      callback(null, false);
+    },
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 
