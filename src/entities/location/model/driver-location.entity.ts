@@ -11,8 +11,9 @@ export class DriverLocation {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
-  driverId: number;
+  /** Driver user UUID (same as driver.id). */
+  @Column({ type: 'uuid', unique: true })
+  driverId: string;
 
   @Index({ spatial: true })
   @Column({

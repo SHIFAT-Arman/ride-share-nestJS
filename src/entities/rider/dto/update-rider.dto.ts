@@ -1,4 +1,11 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { RiderStatus } from '../enums/rider-status.enum';
 
 export class UpdateRiderDto {
   @IsOptional()
@@ -16,4 +23,10 @@ export class UpdateRiderDto {
   @IsOptional()
   @IsString()
   phone?: string;
+}
+
+export class UpdateRiderStatusDto {
+  @IsNotEmpty()
+  @IsEnum(RiderStatus)
+  status: RiderStatus;
 }

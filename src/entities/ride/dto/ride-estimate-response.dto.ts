@@ -7,5 +7,8 @@ export class RideEstimateResponseDto {
 
   estimatedDurationInMinutes: number;
 
+  /** GeoJSON LineString coordinates [lng, lat][] for the map polyline. */
+  geometry: [number, number][];
+
   nearbyDrivers: NearbyDriverDto[];
 }
