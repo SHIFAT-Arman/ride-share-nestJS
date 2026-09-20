@@ -16,7 +16,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RiderService } from './rider.service';
 import { CreateRiderDto } from './dto/create-rider.dto';
-import { UpdateRiderDto } from './dto/update-rider.dto';
+import {
+  UpdateRiderDto,
+  UpdateRiderStatusDto,
+} from './dto/update-rider.dto';
 import { FindRiderParams } from './params/find-rider.params';
 import { Rider } from './rider.entity';
 import { PaginationResponse } from '../common/pagination/pagination.response';
@@ -48,8 +51,10 @@ export class RiderController {
     };
   }
 
-  // ─── Public: registration (also called from auth module) ─────────────────
+  // ─── Admin-only: create (public signup stays on POST /auth/register) ─────
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN)
   @Post()
   public async createRider(
     @Body() createRiderDto: CreateRiderDto,
@@ -88,6 +93,20 @@ export class RiderController {
   }
 
   // ─── Admin-only: privileged mutations ────────────────────────────────────
+
+  /** Admin only — change a rider's status (e.g. suspend or activate). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN)
+  @Patch(':id/status')
+  public async updateRiderStatus(
+    @Param('id') id: string,
+    @Body() updateRiderStatusDto: UpdateRiderStatusDto,
+  ): Promise<Rider> {
+    return this.riderService.updateRiderStatus(
+      id,
+      updateRiderStatusDto.status,
+    );
+  }
 
   /** Admin only — soft-delete a rider account. */
   @UseGuards(JwtAuthGuard, RolesGuard)

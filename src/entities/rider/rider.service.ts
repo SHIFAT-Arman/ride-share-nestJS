@@ -4,6 +4,7 @@ import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 import { Rider } from './rider.entity';
 import { CreateRiderDto } from './dto/create-rider.dto';
 import { UpdateRiderDto } from './dto/update-rider.dto';
+import { RiderStatus } from './enums/rider-status.enum';
 import { FindRiderParams } from './params/find-rider.params';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
 import { UploadProfilePictureResponseDto } from '../common/dto/upload-profile-picture-response.dto';
@@ -74,6 +75,19 @@ export class RiderService {
     const saved = await this.riderRepository.save(rider);
     if (email) saved.user.email = email;
     return saved;
+  }
+
+  public async updateRiderStatus(
+    id: string,
+    status: RiderStatus,
+  ): Promise<Rider> {
+    const rider = await this.riderRepository.findOne({
+      where: { id },
+      relations: { user: true },
+    });
+    if (!rider) throw new NotFoundException(`Rider with id '${id}' not found.`);
+    rider.status = status;
+    return this.riderRepository.save(rider);
   }
 
   public async deleteRiderById(id: string): Promise<void> {

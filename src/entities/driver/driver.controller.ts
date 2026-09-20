@@ -70,8 +70,10 @@ export class DriverController {
     };
   }
 
-  // ─── Public: registration (also called from auth module) ─────────────────
+  // ─── Admin-only: create (self-apply stays on POST /auth/register/driver) ─
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN)
   @Post()
   public async createDriver(
     @Body() createDriverDto: CreateDriverDto,

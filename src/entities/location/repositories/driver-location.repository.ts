@@ -1,9 +1,16 @@
-// repositories/driver-location.repository.ts
-
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DriverLocation } from '../model/driver-location.entity';
+import { VehicleType } from '../../vehicle/enums/vehicle-type.enum';
+
+export type NearbyDriverRow = {
+  driverId: string;
+  distance: number;
+  latitude: number;
+  longitude: number;
+  vehicleType: VehicleType;
+};
 
 @Injectable()
 export class DriverLocationRepository {
@@ -14,19 +21,20 @@ export class DriverLocationRepository {
   ) {}
 
   async saveLocation(
-    driverId: number,
+    driverId: string,
     latitude: number,
     longitude: number,
+    isOnline = true,
   ): Promise<void> {
     await this.repository.upsert(
       {
         driverId,
         location: {
           type: 'Point',
-          coordinates: [longitude, latitude], // GeoJSON: [lng, lat]
+          coordinates: [longitude, latitude],
         },
         updatedAt: new Date(),
-        isOnline: true,
+        isOnline,
       },
       ['driverId'],
     );
@@ -36,26 +44,41 @@ export class DriverLocationRepository {
     latitude: number,
     longitude: number,
     radiusInMeters: number,
-  ) {
+    vehicleType?: VehicleType,
+  ): Promise<NearbyDriverRow[]> {
+    // TypeORM default column names are camelCase (no SnakeNamingStrategy).
+    const params: unknown[] = [longitude, latitude, radiusInMeters];
+    let vehicleFilter = '';
+    if (vehicleType) {
+      params.push(vehicleType);
+      vehicleFilter = `AND v."vehicleType" = $4`;
+    }
+
     return this.dataSource.query(
       `
-      SELECT *,
-             ST_Distance(
-                 location,
-                 ST_SetSRID(ST_MakePoint($1,$2),4326)::geography
-             ) AS distance
-      FROM driver_locations
+      SELECT
+        dl."driverId" AS "driverId",
+        ST_Distance(
+          dl.location,
+          ST_SetSRID(ST_MakePoint($1,$2),4326)::geography
+        ) AS distance,
+        ST_Y(dl.location::geometry) AS latitude,
+        ST_X(dl.location::geometry) AS longitude,
+        v."vehicleType" AS "vehicleType"
+      FROM driver_locations dl
+      INNER JOIN vehicle v ON v."driverId" = dl."driverId"
       WHERE
-          is_online = true
-      AND
-          ST_DWithin(
-              location,
-              ST_SetSRID(ST_MakePoint($1,$2),4326)::geography,
-              $3
-          )
-      ORDER BY distance ASC;
+        dl."isOnline" = true
+        ${vehicleFilter}
+        AND ST_DWithin(
+          dl.location,
+          ST_SetSRID(ST_MakePoint($1,$2),4326)::geography,
+          $3
+        )
+      ORDER BY distance ASC
+      LIMIT 10
       `,
-      [longitude, latitude, radiusInMeters],
+      params,
     );
   }
 }
