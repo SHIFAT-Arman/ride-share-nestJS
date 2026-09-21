@@ -12,6 +12,7 @@ import { AdminService } from '../entities/admin/admin.service';
 import { PasswordService } from '../entities/common/password.service';
 import { UserService } from '../entities/user/user.service';
 import { TokenPairService } from './token-pair.service';
+import { VehicleType } from '../entities/vehicle/enums/vehicle-type.enum';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -24,9 +25,21 @@ describe('AuthService', () => {
     refreshMaxAgeMs: jest.fn().mockReturnValue(604800000),
   };
   const mockPasswordService = { verify: jest.fn() };
-  const mockUserService = { findByEmail: jest.fn() };
-  const mockRiderService = { createRider: jest.fn() };
-  const mockDriverService = { createDriver: jest.fn() };
+  const mockUserService = {
+    findByEmail: jest.fn(),
+    updateRole: jest.fn(),
+  };
+  const mockRiderService = {
+    createRider: jest.fn(),
+    hasProfile: jest.fn(),
+    hasProfileIncludingDeleted: jest.fn(),
+    restoreIfSoftDeleted: jest.fn(),
+  };
+  const mockDriverService = {
+    createDriver: jest.fn(),
+    promoteRider: jest.fn(),
+    hasProfile: jest.fn(),
+  };
   const mockAdminService = { createAdmin: jest.fn() };
 
   beforeEach(async () => {
@@ -138,24 +151,111 @@ describe('AuthService', () => {
       );
     });
 
-    it('registers a driver', async () => {
-      mockDriverService.createDriver.mockResolvedValue({
-        id: 'user-uuid-1',
-        email: 'john@example.com',
+    it('applies a rider as driver and issues a driver token pair', async () => {
+      mockDriverService.promoteRider.mockResolvedValue({
+        email: 'jane@example.com',
+      });
+      mockTokenPairs.issue.mockResolvedValue({
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        role: 'driver',
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
       });
 
-      const driver = await authService.registerDriver({
-        firstName: 'John',
-        lastName: 'Smith',
-        email: 'john@example.com',
-        password: 'Secret@123',
+      const result = await authService.applyAsDriver('user-uuid-1', {
+        firstName: 'Jane',
+        lastName: 'Doe',
         phone: '01700000000',
+        vehicleType: VehicleType.CAR,
+        licensePlate: 'Dhaka-1234',
+        seatingCapacity: 4,
       });
 
-      expect(driver).toEqual({
+      expect(result.role).toBe('driver');
+      expect(mockDriverService.promoteRider).toHaveBeenCalledWith(
+        'user-uuid-1',
+        expect.objectContaining({
+          licensePlate: 'Dhaka-1234',
+          vehicleType: VehicleType.CAR,
+        }),
+      );
+      expect(mockTokenPairs.issue).toHaveBeenCalledWith({
         id: 'user-uuid-1',
-        email: 'john@example.com',
+        email: 'jane@example.com',
+        role: 'driver',
       });
+    });
+
+    it('propagates ConflictException when already a driver', async () => {
+      mockDriverService.promoteRider.mockRejectedValue(
+        new ConflictException('Already registered as a driver'),
+      );
+
+      await expect(
+        authService.applyAsDriver('user-uuid-1', {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          phone: '01700000000',
+          vehicleType: VehicleType.BIKE,
+          licensePlate: 'Bike-1',
+          seatingCapacity: 1,
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockTokenPairs.issue).not.toHaveBeenCalled();
+    });
+
+    it('switches active role to rider when a rider profile exists', async () => {
+      mockRiderService.restoreIfSoftDeleted.mockResolvedValue(true);
+      mockTokenPairs.issue.mockResolvedValue({
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        role: 'rider',
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
+      });
+
+      const result = await authService.switchRole(
+        'user-uuid-1',
+        'jane@example.com',
+        { role: 'rider' as never },
+      );
+
+      expect(result.role).toBe('rider');
+      expect(mockUserService.updateRole).toHaveBeenCalledWith(
+        'user-uuid-1',
+        'rider',
+      );
+      expect(mockTokenPairs.issue).toHaveBeenCalledWith({
+        id: 'user-uuid-1',
+        email: 'jane@example.com',
+        role: 'rider',
+      });
+    });
+
+    it('rejects switch to driver when no driver profile exists', async () => {
+      mockDriverService.hasProfile.mockResolvedValue(false);
+
+      await expect(
+        authService.switchRole('user-uuid-1', 'jane@example.com', {
+          role: 'driver' as never,
+        }),
+      ).rejects.toThrow('No driver profile on this account');
+      expect(mockTokenPairs.issue).not.toHaveBeenCalled();
+    });
+
+    it('returns availableRoles for dual accounts on me', async () => {
+      mockRiderService.hasProfileIncludingDeleted.mockResolvedValue(true);
+      mockDriverService.hasProfile.mockResolvedValue(true);
+
+      const me = await authService.getSessionMe({
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
+        role: 'driver' as never,
+      });
+
+      expect(me.availableRoles).toEqual(['rider', 'driver']);
+      expect(me.role).toBe('driver');
     });
 
     it('registers an admin', async () => {
