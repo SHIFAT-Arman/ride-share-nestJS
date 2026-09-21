@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { StorageService } from './local-storage.service';
+import { StorageService } from './neon-storage.service';
 
 export const STORAGE_SERVICE = 'STORAGE_SERVICE';
 
