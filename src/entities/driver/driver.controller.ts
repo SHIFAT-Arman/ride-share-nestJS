@@ -70,7 +70,7 @@ export class DriverController {
     };
   }
 
-  // ─── Admin-only: create (self-apply stays on POST /auth/register/driver) ─
+  // ─── Admin-only: create (rider self-apply is POST /auth/register/driver) ─
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserType.ADMIN)

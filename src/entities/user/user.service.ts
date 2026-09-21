@@ -76,6 +76,8 @@ export class UserService {
   }
 
   public async updateEmail(id: string, email: string): Promise<void> {
+    await this.restoreIfSoftDeleted(id);
+
     const existing = await this.findByEmail(email);
 
     if (existing && existing.id !== id) {
@@ -86,6 +88,7 @@ export class UserService {
   }
 
   public async updateRole(id: string, role: UserType): Promise<void> {
+    await this.restoreIfSoftDeleted(id);
     await this.userRepository.update(id, { role });
   }
 
@@ -95,6 +98,49 @@ export class UserService {
     if (!result.affected) {
       throw new NotFoundException(`User with id '${id}' not found.`);
     }
+  }
+
+  /** Undo a soft-delete so dual rider/driver accounts survive a sibling delete. */
+  public async restoreIfSoftDeleted(id: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!user) return false;
+    if (user.deletedAt) {
+      await this.userRepository.recover(user);
+    }
+    return true;
+  }
+
+  /** Restore a soft-deleted login by email (legacy dual-profile delete damage). */
+  public async restoreByEmailIfSoftDeleted(email: string): Promise<boolean> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .withDeleted()
+      .where('user.email = :email', { email })
+      .andWhere('user.deletedAt IS NOT NULL')
+      .getOne();
+    if (!user) return false;
+    await this.userRepository.recover(user);
+    return true;
+  }
+
+  /**
+   * Soft-delete the users row only when no other live profile remains.
+   * Otherwise keep the account and set role to the remaining profile.
+   */
+  public async softDeleteOrKeepForSibling(
+    id: string,
+    siblingAlive: boolean,
+    keepAs: UserType,
+  ): Promise<void> {
+    if (siblingAlive) {
+      await this.restoreIfSoftDeleted(id);
+      await this.userRepository.update(id, { role: keepAs });
+      return;
+    }
+    await this.softDelete(id);
   }
 
   public async remove(id: string): Promise<void> {

@@ -9,13 +9,15 @@ import { RatingService } from '../rating/rating.service';
 import { Rating } from '../rating/rating.entity';
 import { VehicleService } from '../vehicle/vehicle.service';
 import { Vehicle } from '../vehicle/vehicle.entity';
+import { Rider } from '../rider/rider.entity';
+import { User } from '../user/user.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Driver, Rating, Vehicle]),
+    TypeOrmModule.forFeature([Driver, Rating, Vehicle, Rider, User]),
     CommonModule,
     UserModule,
   ],

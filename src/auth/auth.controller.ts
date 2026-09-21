@@ -15,10 +15,10 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { UserType } from './user-type.enum';
 import { CreateAdminDto } from '../entities/admin/dto/create-admin.dto';
-import { CreateDriverDto } from '../entities/driver/dto/create-driver.dto';
 import { CreateRiderDto } from '../entities/rider/dto/create-rider.dto';
+import { ApplyAsDriverDto } from './dto/apply-as-driver.dto';
+import { SwitchRoleDto } from './dto/switch-role.dto';
 import { Admin } from '../entities/admin/admin.entity';
-import { Driver } from '../entities/driver/driver.entity';
 import { Rider } from '../entities/rider/rider.entity';
 import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorator';
@@ -33,6 +33,10 @@ import {
 } from './cookie-names';
 import { RefreshPrincipal } from './token-pair.service';
 
+interface RequestWithUser extends Request {
+  user: { sub: string; email: string; role: UserType };
+}
+
 @Controller('/v1/api/auth')
 export class AuthController {
   constructor(
@@ -42,8 +46,23 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard) //skipped rolesguard
   @Get('me')
-  public me(@Req() req: Request) {
-    return req.user;
+  public async me(
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.authService.getSessionMe(req.user);
+    if (session.role !== req.user.role) {
+      const { accessToken, refreshToken } =
+        await this.authService.reissueForSession(session);
+      setAuthCookies(
+        res,
+        accessToken,
+        refreshToken,
+        this.config,
+        this.authService.cookieMaxAges(),
+      );
+    }
+    return session;
   }
 
   @Public()
@@ -116,11 +135,45 @@ export class AuthController {
     return this.authService.registerAdmin(body);
   }
 
+  /** Rider self-apply: same account → driver + vehicle; re-issues auth cookies. */
   @Post('register/driver')
-  @Roles(UserType.RIDER, UserType.ADMIN)
-  @UseInterceptors(ClassSerializerInterceptor)
-  @SerializeOptions({ strategy: 'excludeAll' })
-  public async registerDriver(@Body() body: CreateDriverDto): Promise<Driver> {
-    return this.authService.registerDriver(body);
+  @Roles(UserType.RIDER)
+  public async registerDriver(
+    @Body() body: ApplyAsDriverDto,
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<object> {
+    const { accessToken, refreshToken, role, sub, email } =
+      await this.authService.applyAsDriver(req.user.sub, body);
+
+    setAuthCookies(
+      res,
+      accessToken,
+      refreshToken,
+      this.config,
+      this.authService.cookieMaxAges(),
+    );
+    return { message: 'Applied as driver', role, sub, email };
+  }
+
+  /** Flip active dashboard mode between rider and driver; re-issues auth cookies. */
+  @Post('switch-role')
+  @Roles(UserType.RIDER, UserType.DRIVER)
+  public async switchRole(
+    @Body() body: SwitchRoleDto,
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<object> {
+    const { accessToken, refreshToken, role, sub, email } =
+      await this.authService.switchRole(req.user.sub, req.user.email, body);
+
+    setAuthCookies(
+      res,
+      accessToken,
+      refreshToken,
+      this.config,
+      this.authService.cookieMaxAges(),
+    );
+    return { message: 'Role switched', role, sub, email };
   }
 }
