@@ -2,7 +2,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  StreamableFile,
 } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { ProfilePictureService } from '../common/profile-picture/profile-picture.service';
@@ -19,7 +18,6 @@ import { FindAnnouncementParams } from './params/find-announcement.params';
 
 import { UserService } from '../user/user.service';
 import { UserType } from 'src/auth/user-type.enum';
-import { resolveUploadPath } from '../common/storage/local-storage.service';
 import { PusherService } from '../common/pusher.service';
 
 type Actor = { sub: string; role: UserType };
@@ -128,14 +126,6 @@ export class AdminService {
       changePasswordDto.oldPassword,
       changePasswordDto.newPassword,
     );
-  }
-
-  public async getProfilePictureUrl(id: string): Promise<string> {
-    const admin = await this.adminRepository.findOneBy({ id });
-    if (!admin) throw new NotFoundException(`Admin with id '${id}' not found.`);
-
-    const filePath = resolveUploadPath(admin.profilePictureUrl);
-    return filePath;
   }
 
   public async uploadProfilePicture(

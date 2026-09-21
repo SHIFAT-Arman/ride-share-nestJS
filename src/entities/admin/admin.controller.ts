@@ -10,7 +10,6 @@ import {
   Put,
   Query,
   Req,
-  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -36,7 +35,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 // import { SendEmailDto } from './email/send-email.dto';
 import { UserType } from 'src/auth/user-type.enum';
 import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
-import { createReadStream } from 'fs';
 
 interface RequestWithUser extends Request {
   user: JwtPayload;
@@ -99,24 +97,6 @@ export class AdminController {
     @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<void> {
     await this.adminService.changePassword(id, changePasswordDto);
-  }
-
-  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
-  @Get('/profile-picture')
-  public async getProfilePicture(
-    @Req() req: RequestWithUser,
-  ): Promise<StreamableFile> {
-    const filePath = await this.adminService.getProfilePictureUrl(req.user.sub);
-    return new StreamableFile(createReadStream(filePath));
-  }
-
-  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
-  @Get('/:id/profile-picture')
-  public async getProfilePictureById(
-    @Param('id') id: string,
-  ): Promise<StreamableFile> {
-    const filePath = await this.adminService.getProfilePictureUrl(id);
-    return new StreamableFile(createReadStream(filePath));
   }
 
   @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
