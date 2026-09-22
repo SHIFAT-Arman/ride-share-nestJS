@@ -28,19 +28,23 @@ describe('AuthService', () => {
   const mockUserService = {
     findByEmail: jest.fn(),
     updateRole: jest.fn(),
+    restoreIfSoftDeleted: jest.fn(),
+    restoreByEmailIfSoftDeleted: jest.fn(),
   };
   const mockRiderService = {
     createRider: jest.fn(),
     hasProfile: jest.fn(),
     hasProfileIncludingDeleted: jest.fn(),
     restoreIfSoftDeleted: jest.fn(),
+    getRiderById: jest.fn(),
   };
   const mockDriverService = {
     createDriver: jest.fn(),
     promoteRider: jest.fn(),
     hasProfile: jest.fn(),
+    getDriverById: jest.fn(),
   };
-  const mockAdminService = { createAdmin: jest.fn() };
+  const mockAdminService = { createAdmin: jest.fn(), getAdminById: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -247,6 +251,10 @@ describe('AuthService', () => {
     it('returns availableRoles for dual accounts on me', async () => {
       mockRiderService.hasProfileIncludingDeleted.mockResolvedValue(true);
       mockDriverService.hasProfile.mockResolvedValue(true);
+      mockDriverService.getDriverById.mockResolvedValue({
+        firstName: 'Jane',
+        lastName: 'Doe',
+      });
 
       const me = await authService.getSessionMe({
         sub: 'user-uuid-1',
@@ -256,6 +264,21 @@ describe('AuthService', () => {
 
       expect(me.availableRoles).toEqual(['rider', 'driver']);
       expect(me.role).toBe('driver');
+      expect(me.name).toBe('Jane Doe');
+    });
+
+    it('returns a null name when the active profile is missing', async () => {
+      mockRiderService.hasProfileIncludingDeleted.mockResolvedValue(true);
+      mockRiderService.getRiderById.mockRejectedValue(new Error('missing'));
+
+      const me = await authService.getSessionMe({
+        sub: 'user-uuid-1',
+        email: 'jane@example.com',
+        role: 'rider' as never,
+      });
+
+      expect(me.name).toBeNull();
+      expect(me.email).toBe('jane@example.com');
     });
 
     it('registers an admin', async () => {

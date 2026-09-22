@@ -34,6 +34,7 @@ export type SessionMe = {
   email: string;
   role: UserType;
   availableRoles: UserType[];
+  name: string | null;
 };
 
 @Injectable()
@@ -103,7 +104,28 @@ export class AuthService {
       email: user.email,
       role,
       availableRoles,
+      name: await this.profileName(user.sub, role),
     };
+  }
+
+  // ponytail: full profile row (driver includes vehicle) for two columns; select firstName/lastName if /auth/me gets hot
+  private async profileName(
+    userId: string,
+    role: UserType,
+  ): Promise<string | null> {
+    try {
+      const profile =
+        role === UserType.ADMIN
+          ? await this.adminService.getAdminById(userId)
+          : role === UserType.DRIVER
+            ? await this.driverService.getDriverById(userId)
+            : await this.riderService.getRiderById(userId);
+      if (!profile) return null;
+      const name = `${profile.firstName} ${profile.lastName}`.trim();
+      return name || null;
+    } catch {
+      return null;
+    }
   }
 
   public async reissueForSession(session: SessionMe): Promise<TokenPair> {
