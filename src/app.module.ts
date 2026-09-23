@@ -9,6 +9,7 @@ import { VehicleModule } from './entities/vehicle/vehicle.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdminModule } from './entities/admin/admin.module';
+import { TestimonialModule } from './entities/testimonial/testimonial.module';
 import { AuthModule } from './auth/auth.module';
 import { postgresTypeOrmOptions } from './typeorm.options';
 
@@ -25,6 +26,7 @@ import { postgresTypeOrmOptions } from './typeorm.options';
     RideModule,
     VehicleModule,
     AdminModule,
+    TestimonialModule,
     AuthModule,
   ],
   controllers: [AppController],
