@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { isMissingRelation } from '../common/missing-relation';
 import { CreateTestimonialDto } from './dto/create-testimonial.dto';
 import { UpdateTestimonialDto } from './dto/update-testimonial.dto';
 import { testimonialCountError } from './testimonial-count';
@@ -59,13 +61,23 @@ const SEED: Omit<Testimonial, 'id' | 'createdAt'>[] = [
 
 @Injectable()
 export class TestimonialService implements OnModuleInit {
+  private readonly logger = new Logger(TestimonialService.name);
+
   constructor(
     @InjectRepository(Testimonial)
     private readonly testimonials: Repository<Testimonial>,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    if ((await this.testimonials.count()) > 0) return;
+    try {
+      if ((await this.testimonials.count()) > 0) return;
+    } catch (err) {
+      // ponytail: prod keeps DB_SYNCHRONIZE=false and has no migrations.
+      // A missing table must not stop the API. Create `testimonial` in Neon, then restart.
+      if (!isMissingRelation(err)) throw err;
+      this.logger.warn('testimonial table is missing; skipping seed');
+      return;
+    }
     // ponytail: empty-table seed and the 6–9 checks are count-then-write with no lock.
     // Two servers booting together can insert 12; two admins can slip past the cap.
     // Upgrade: transaction + advisory lock.
