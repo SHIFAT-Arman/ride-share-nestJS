@@ -15,3 +15,10 @@ export function cancellationRate(
   const denom = completed + cancelled;
   return denom === 0 ? 0 : cancelled / denom;
 }
+
+export function ratedShare(
+  ratingCount: number,
+  completedRides: number,
+): number {
+  return completedRides === 0 ? 0 : ratingCount / completedRides;
+}

@@ -11,7 +11,11 @@ import { Rider } from '../rider/rider.entity';
 import { RiderStatus } from '../rider/enums/rider-status.enum';
 import { Ride } from '../ride/ride.entity';
 import { RideStatus } from '../ride/enums/ride-status.enum';
-import { cancellationRate, completionRate } from './analytics-rates';
+import {
+  cancellationRate,
+  completionRate,
+  ratedShare,
+} from './analytics-rates';
 
 export type AnalyticsRange = '7d' | '30d' | 'all';
 
@@ -47,6 +51,9 @@ export class AnalyticsService {
       searchingRides,
       dayRows,
       statusRows,
+      mixRows,
+      ratingAgg,
+      distRows,
       adminCount,
       riderCount,
       driverCount,
@@ -72,10 +79,35 @@ export class AnalyticsService {
         .addSelect('COUNT(*)', 'count')
         .groupBy('ride.status')
         .getRawMany<{ status: string; count: string }>(),
+      base()
+        .select('ride.vehicleType', 'vehicleType')
+        .addSelect('COUNT(*)', 'count')
+        .addSelect(
+          `COALESCE(SUM(CASE WHEN ride.status = :completed THEN COALESCE(ride.estimatedFare, 0) ELSE 0 END), 0)`,
+          'estimatedFare',
+        )
+        .setParameter('completed', RideStatus.COMPLETED)
+        .groupBy('ride.vehicleType')
+        .getRawMany<{
+          vehicleType: string;
+          count: string;
+          estimatedFare: string;
+        }>(),
+      this.ratingQb(from, to)
+        .select('AVG(rating.score)', 'avg')
+        .addSelect('COUNT(rating.id)', 'count')
+        .getRawOne<{ avg: string | null; count: string }>(),
+      this.ratingQb(from, to)
+        .select('rating.score', 'score')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('rating.score')
+        .getRawMany<{ score: string; count: string }>(),
       this.admins.count(),
       this.riders.count(),
       this.drivers.count(),
     ]);
+
+    const ratingCount = Number(ratingAgg?.count ?? 0);
 
     return {
       range,
@@ -98,6 +130,20 @@ export class AnalyticsService {
         status: r.status,
         count: Number(r.count),
       })),
+      vehicleMix: mixRows.map((r) => ({
+        vehicleType: r.vehicleType,
+        count: Number(r.count),
+        estimatedFare: Number(r.estimatedFare),
+      })),
+      ratingHealth: {
+        averageScore:
+          ratingCount === 0 || ratingAgg?.avg == null
+            ? null
+            : Number(ratingAgg.avg),
+        ratingCount,
+        ratedShare: ratedShare(ratingCount, completedRides),
+        distribution: fillScoreDistribution(distRows),
+      },
       accounts: {
         admin: adminCount,
         rider: riderCount,
@@ -240,6 +286,15 @@ export class AnalyticsService {
     return qb;
   }
 
+  private ratingQb(from: Date | null, to: Date) {
+    const qb = this.ratings.createQueryBuilder('rating');
+    if (from) {
+      qb.andWhere('rating.createdAt >= :from', { from });
+      qb.andWhere('rating.createdAt <= :to', { to });
+    }
+    return qb;
+  }
+
   private groupByDay(qb: SelectQueryBuilder<Ride>) {
     return qb
       .select(`TO_CHAR(ride.createdAt, 'YYYY-MM-DD')`, 'date')
@@ -317,6 +372,16 @@ function fillDaysWithEarnings(
     date,
     count: map.get(date)?.count ?? 0,
     earnings: map.get(date)?.earnings ?? 0,
+  }));
+}
+
+function fillScoreDistribution(
+  rows: { score: string; count: string }[],
+): { score: number; count: number }[] {
+  const counts = new Map(rows.map((r) => [Number(r.score), Number(r.count)]));
+  return [1, 2, 3, 4, 5].map((score) => ({
+    score,
+    count: counts.get(score) ?? 0,
   }));
 }
 
