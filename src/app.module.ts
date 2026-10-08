@@ -11,6 +11,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdminModule } from './entities/admin/admin.module';
 import { TestimonialModule } from './entities/testimonial/testimonial.module';
 import { FaqModule } from './entities/faq/faq.module';
+import { AnalyticsModule } from './entities/analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { postgresTypeOrmOptions } from './typeorm.options';
 
@@ -29,6 +30,7 @@ import { postgresTypeOrmOptions } from './typeorm.options';
     AdminModule,
     TestimonialModule,
     FaqModule,
+    AnalyticsModule,
     AuthModule,
   ],
   controllers: [AppController],
