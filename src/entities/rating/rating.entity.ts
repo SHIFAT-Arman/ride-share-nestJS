@@ -16,7 +16,14 @@ export class Rating {
   score: number;
 
   @Column({ type: 'text', nullable: true })
-  comment: string;
+  comment: string | null;
+
+  /** One rating per completed ride; null for legacy rows created before ride linkage. */
+  @Column({ type: 'uuid', nullable: true, unique: true })
+  rideId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  riderUserId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

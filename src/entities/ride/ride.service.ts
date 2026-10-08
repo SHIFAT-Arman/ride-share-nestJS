@@ -16,6 +16,8 @@ import { estimateFare, fetchOsrmRoute } from './osrm-route';
 import { DriverLocationRepository } from '../location/repositories/driver-location.repository';
 import { PusherService } from '../common/pusher.service';
 import { UserType } from 'src/auth/user-type.enum';
+import { PaginationParams } from '../common/pagination/pagination.params';
+import { PaginationResponse } from '../common/pagination/pagination.response';
 
 const MATCH_RADIUS_M = 15_000;
 
@@ -199,6 +201,35 @@ export class RideService {
       order: { createdAt: 'DESC' },
       take: 20,
     });
+  }
+
+  public async listHistory(
+    userId: string,
+    role: string,
+    filter: PaginationParams,
+  ): Promise<PaginationResponse<Ride>> {
+    const where =
+      role === UserType.DRIVER
+        ? {
+            driverUserId: userId,
+            status: In([RideStatus.COMPLETED, RideStatus.CANCELLED]),
+          }
+        : {
+            riderUserId: userId,
+            status: In([RideStatus.COMPLETED, RideStatus.CANCELLED]),
+          };
+
+    const [data, total] = await this.rideRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: filter.offset,
+      take: filter.limit,
+    });
+
+    return {
+      data,
+      meta: { total, offset: filter.offset, limit: filter.limit },
+    };
   }
 
   public getById(id: string): Promise<Ride | null> {
