@@ -50,6 +50,9 @@ export class AnalyticsService {
       pendingRiderVerifications,
       searchingRides,
       dayRows,
+      hourRows,
+      riderSignupRows,
+      driverSignupRows,
       statusRows,
       mixRows,
       ratingAgg,
@@ -74,6 +77,13 @@ export class AnalyticsService {
       }),
       this.rides.count({ where: { status: RideStatus.SEARCHING } }),
       this.groupByDay(base()),
+      base()
+        .select('EXTRACT(HOUR FROM ride.createdAt)', 'hour')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('EXTRACT(HOUR FROM ride.createdAt)')
+        .getRawMany<{ hour: string; count: string }>(),
+      this.signupByDay(this.riders, 'rider', from, to),
+      this.signupByDay(this.drivers, 'driver', from, to),
       base()
         .select('ride.status', 'status')
         .addSelect('COUNT(*)', 'count')
@@ -126,6 +136,7 @@ export class AnalyticsService {
         searchingRides,
       },
       ridesByDay: fillDays(from, to, dayRows),
+      ridesByHour: fillHours(hourRows),
       ridesByStatus: statusRows.map((r) => ({
         status: r.status,
         count: Number(r.count),
@@ -144,6 +155,7 @@ export class AnalyticsService {
         ratedShare: ratedShare(ratingCount, completedRides),
         distribution: fillScoreDistribution(distRows),
       },
+      signupsByDay: fillSignupsByDay(from, to, riderSignupRows, driverSignupRows),
       accounts: {
         admin: adminCount,
         rider: riderCount,
@@ -304,6 +316,25 @@ export class AnalyticsService {
       .getRawMany<{ date: string; count: string }>();
   }
 
+  private signupByDay(
+    repo: Repository<Rider> | Repository<Driver>,
+    alias: string,
+    from: Date | null,
+    to: Date,
+  ) {
+    const qb = repo.createQueryBuilder(alias);
+    if (from) {
+      qb.andWhere(`${alias}.createdAt >= :from`, { from });
+      qb.andWhere(`${alias}.createdAt <= :to`, { to });
+    }
+    return qb
+      .select(`TO_CHAR(${alias}.createdAt, 'YYYY-MM-DD')`, 'date')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy(`TO_CHAR(${alias}.createdAt, 'YYYY-MM-DD')`)
+      .orderBy('date', 'ASC')
+      .getRawMany<{ date: string; count: string }>();
+  }
+
   private groupByDayWithEarnings(qb: SelectQueryBuilder<Ride>) {
     return qb
       .select(`TO_CHAR(ride.createdAt, 'YYYY-MM-DD')`, 'date')
@@ -382,6 +413,40 @@ function fillScoreDistribution(
   return [1, 2, 3, 4, 5].map((score) => ({
     score,
     count: counts.get(score) ?? 0,
+  }));
+}
+
+function fillHours(
+  rows: { hour: string; count: string }[],
+): { hour: number; count: number }[] {
+  const counts = new Map(rows.map((r) => [Number(r.hour), Number(r.count)]));
+  return Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    count: counts.get(hour) ?? 0,
+  }));
+}
+
+function fillSignupsByDay(
+  from: Date | null,
+  to: Date,
+  riderRows: { date: string; count: string }[],
+  driverRows: { date: string; count: string }[],
+): { date: string; riders: number; drivers: number }[] {
+  const riders = new Map(riderRows.map((r) => [r.date, Number(r.count)]));
+  const drivers = new Map(driverRows.map((r) => [r.date, Number(r.count)]));
+  if (!from) {
+    return [...new Set([...riders.keys(), ...drivers.keys()])]
+      .sort((a, b) => a.localeCompare(b))
+      .map((date) => ({
+        date,
+        riders: riders.get(date) ?? 0,
+        drivers: drivers.get(date) ?? 0,
+      }));
+  }
+  return eachDay(from, to).map((date) => ({
+    date,
+    riders: riders.get(date) ?? 0,
+    drivers: drivers.get(date) ?? 0,
   }));
 }
 
