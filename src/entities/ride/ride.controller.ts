@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -13,6 +14,11 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserType } from 'src/auth/user-type.enum';
 import { Ride } from './ride.entity';
 import { RideEstimateResponseDto } from './dto/ride-estimate-response.dto';
+import { PaginationParams } from '../common/pagination/pagination.params';
+import { PaginationResponse } from '../common/pagination/pagination.response';
+import { RatingService } from '../rating/rating.service';
+import { CreateRatingDto } from '../rating/dto/create-rating.dto';
+import { Rating } from '../rating/rating.entity';
 
 interface RequestWithUser extends Request {
   user: {
@@ -24,7 +30,10 @@ interface RequestWithUser extends Request {
 
 @Controller('/v1/api/ride')
 export class RideController {
-  constructor(private readonly rideService: RideService) {}
+  constructor(
+    private readonly rideService: RideService,
+    private readonly ratingService: RatingService,
+  ) {}
 
   @Post('/estimate')
   @Roles(UserType.RIDER)
@@ -58,6 +67,15 @@ export class RideController {
     return this.rideService.listSearching();
   }
 
+  @Get('/history')
+  @Roles(UserType.RIDER, UserType.DRIVER)
+  public listHistory(
+    @Req() req: RequestWithUser,
+    @Query() filter: PaginationParams,
+  ): Promise<PaginationResponse<Ride>> {
+    return this.rideService.listHistory(req.user.sub, req.user.role, filter);
+  }
+
   @Get('/:id')
   @Roles(UserType.RIDER, UserType.DRIVER, UserType.ADMIN)
   public getById(
@@ -69,6 +87,32 @@ export class RideController {
       req.user.sub,
       req.user.role,
     );
+  }
+
+  @Get('/:id/rating')
+  @Roles(UserType.RIDER, UserType.DRIVER, UserType.ADMIN)
+  public async getRating(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<{ rating: Rating | null }> {
+    await this.rideService.getForParticipant(id, req.user.sub, req.user.role);
+    // Nest drops a bare `return null` to an empty body; wrap so clients get JSON.
+    return { rating: await this.ratingService.findByRideId(id) };
+  }
+
+  @Post('/:id/rate')
+  @Roles(UserType.RIDER)
+  public async rate(
+    @Param('id') id: string,
+    @Body() dto: CreateRatingDto,
+    @Req() req: RequestWithUser,
+  ): Promise<Rating> {
+    const ride = await this.rideService.getForParticipant(
+      id,
+      req.user.sub,
+      req.user.role,
+    );
+    return this.ratingService.createForCompletedRide(ride, req.user.sub, dto);
   }
 
   @Post('/:id/accept')
