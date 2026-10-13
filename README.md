@@ -1,52 +1,103 @@
-# RideSharing App (Backend)
-
----
+# Ride Share API
 
 ![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat&logo=nestjs&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=flat&logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![Render](https://img.shields.io/badge/Deployed%20on-Render-46E3B7?style=flat&logo=render&logoColor=111111)
 
----
+The backend API for the [Ride Share frontend](https://github.com/SHIFAT-Arman/ride-share-nextJs). It provides authentication and role-based services for riders, drivers, and administrators, including ride estimates, booking, driver assignment, trip status, ratings, announcements, analytics, and profile pictures.
 
-Users: Admin, Driver, Rider, Employee
+## Live API
 
-## Authentication
+This service is deployed on Render. Set the deployed Render URL here when publishing this README:
 
-### ADR: Access + refresh tokens (Passport)
+```text
+https://ride-share-nestjs.onrender.com
+```
 
-**Status:** Accepted
+The public root endpoint (`GET /`) returns a simple response and can be used as a basic deployment check.
 
-**Context:** We need short-lived API auth and a way to stay logged in without storing passwords in the browser. A single long-lived JWT is hard to revoke. Clearing cookies alone is not enough for logout-everywhere or stolen refresh tokens.
+## Features
 
-**Decision:**
+- Cookie-based access and refresh-token authentication
+- Refresh-token rotation and server-side token storage
+- Role-aware authorization for admin, driver, rider, and employee users
+- Rider registration, profile management, ride history, and active-ride tracking
+- Driver availability, location updates, ride acceptance, and trip lifecycle controls
+- Ride fare estimation, booking, cancellation, completion, and ratings
+- Admin management, announcements, FAQs, testimonials, and analytics
+- Pusher integration for real-time ride and announcement updates
+- Neon Object Storage/S3-compatible storage for profile pictures
+- DTO validation with rejected unknown fields and CORS allowlisting
 
-- **Access token** (`rs_access` cookie): short-lived JWT, Passport strategy `jwt`. Used on normal API routes.
-- **Refresh token** (`rs_refresh` cookie): longer-lived JWT, Passport strategy `jwt-refresh`, checked against Postgres (`refresh_tokens`). Used only on `POST /v1/api/auth/refresh`.
-- Separate secrets: `JWT_SECRET` vs `JWT_REFRESH_SECRET`.
-- On refresh we **rotate** the token (old one dies, new one is issued). Reuse of an old refresh token after rotation revokes that token family (theft signal).
-- Re-login revokes all refresh rows for that user (one active session family).
-- Cookie names stay `rs_*` so stale localhost `access_token` Secure cookies do not break auth.
-- Frontend: on API `401`, silently call refresh once; if that fails, logout and go to `/login`.
+## Tech stack
 
-**Consequences:** Logout and re-login can invalidate sessions. Refresh needs the DB. Stateless “JWT-only refresh” was rejected because we cannot revoke or detect reuse without a store. Swap the store later (e.g. Redis) via `REFRESH_TOKEN_STORE` without changing guards or route handlers.
+| Layer | Technology |
+| --- | --- |
+| Framework | NestJS 11 |
+| Language | TypeScript |
+| Database | PostgreSQL |
+| ORM | TypeORM |
+| Authentication | Passport, JWT, HTTP-only cookies |
+| Validation | `class-validator`, `class-transformer` |
+| Realtime | Pusher |
+| File storage | Neon Object Storage via AWS S3 SDK |
+| Hosting | Render |
 
-## Admin
+## API areas
 
-- Tables
+All resource endpoints are prefixed with `/v1/api`.
 
-![](src/assets/admin-table.png)
+| Area | Base path |
+| --- | --- |
+| Authentication | `/v1/api/auth` |
+| Admin | `/v1/api/admin` |
+| Riders | `/v1/api/riders` |
+| Drivers | `/v1/api/drivers` |
+| Rides | `/v1/api/ride` |
+| Location | `/v1/api/location` |
+| Vehicles | `/v1/api/vehicles` |
+| FAQs | `/v1/api/faqs` |
+| Testimonials | `/v1/api/testimonials` |
+| Analytics | `/v1/api/analytics` |
 
-- Admin Routes:
-  `AdminController` (`@Controller('/v1/api/admin')`)
+Authentication endpoints include:
 
-| Method   | Route                                   | Guard       |
-| -------- | --------------------------------------- | ----------- |
-| `GET`    | `/v1/api/admin/admin-list`              | `AuthGuard` |
-| `POST`   | `/v1/api/admin/create`                  | None        |
-| `PATCH`  | `/v1/api/admin/update-admin/:id`        | None        |
-| `PUT`    | `/v1/api/admin/:id/profile-picture`     | None        |
-| `GET`    | `/v1/api/admin/get-announcements`       | `AuthGuard` |
-| `POST`   | `/v1/api/admin/create-announcement`     | `AuthGuard` |
-| `DELETE` | `/v1/api/admin/delete-announcement/:id` | `AuthGuard` |
-| `DELETE` | `/v1/api/admin/delete-admin/:id`        | None        |
-| `POST`   | `/v1/api/admin/send-email`              | None        |
+- `POST /v1/api/auth/login`
+- `POST /v1/api/auth/register`
+- `POST /v1/api/auth/refresh`
+- `POST /v1/api/auth/logout`
+- `GET /v1/api/auth/me`
+- `POST /v1/api/auth/switch-role`
+
+Ride endpoints include fare estimation, booking, active/history queries, driver acceptance, start/complete/cancel actions, and ratings. The API uses cookies for browser authentication, so cross-origin clients must send requests with credentials enabled.
+
+## Project structure
+
+```text
+src/
+├── auth/                 JWT strategies, guards, cookies, and auth routes
+├── entities/
+│   ├── admin/             Admin management and announcements
+│   ├── analytics/         Admin and user analytics
+│   ├── driver/            Driver profiles and availability
+│   ├── faq/               FAQ management
+│   ├── location/          Place search and driver locations
+│   ├── ride/              Estimates, trips, and ratings
+│   ├── rider/             Rider profiles
+│   ├── testimonial/       Testimonial management
+│   └── vehicle/           Vehicle data
+├── frontend-origins.ts    CORS and cookie-origin validation
+├── main.ts                Application bootstrap and middleware
+└── typeorm.options.ts     PostgreSQL/TypeORM configuration
+test/                      End-to-end test configuration
+.env.example               Environment variable template
+```
+
+## Frontend
+
+The companion frontend is available at [ride-share-nextJs](https://github.com/SHIFAT-Arman/ride-share-nextJs). Configure its API base URL to point to the Render service and enable credentials on requests so the authentication cookies are sent.
+
+## License
+
+This project is private and currently has no open-source license.
