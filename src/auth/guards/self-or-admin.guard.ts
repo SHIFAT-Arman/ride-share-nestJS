@@ -12,11 +12,12 @@ import { UserType } from '../../auth/user-type.enum';
  *  - is an admin.
  *
  * Must run after JwtAuthGuard so request.user is already populated.
- * Expects the route param identifying the owner to be named "id".
+ * Expects the route param identifying the owner to be named "id" or
+ * "driverId".
  */
 interface GuardRequest {
   user?: { sub: string; role: string };
-  params?: { id?: string };
+  params?: { id?: string; driverId?: string };
 }
 
 @Injectable()
@@ -32,7 +33,8 @@ export class SelfOrAdminGuard implements CanActivate {
     }
 
     const isAdmin = this.adminRoles.has(user.role);
-    const isSelf = user.sub === request.params?.id;
+    const ownerId = request.params?.id ?? request.params?.driverId;
+    const isSelf = user.sub === ownerId;
 
     if (!isAdmin && !isSelf) {
       throw new ForbiddenException('You can only access your own resources.');

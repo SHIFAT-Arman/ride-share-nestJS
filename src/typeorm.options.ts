@@ -10,9 +10,8 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 export function resolvePostgresSsl(
   url: string | undefined,
   dbSsl: string | undefined,
-): false | { rejectUnauthorized: false } {
-  if (dbSsl === 'true') return { rejectUnauthorized: false };
-  if (dbSsl === 'false') return false;
+): false | { rejectUnauthorized: true } {
+  if (dbSsl === 'true') return { rejectUnauthorized: true };
   if (!url) return false;
   try {
     const host = new URL(url).hostname;
@@ -20,7 +19,7 @@ export function resolvePostgresSsl(
   } catch {
     return false;
   }
-  return { rejectUnauthorized: false };
+  return { rejectUnauthorized: true };
 }
 
 /** Prefers DATABASE_URL (Neon/Render); falls back to DB_* for local Postgres. */

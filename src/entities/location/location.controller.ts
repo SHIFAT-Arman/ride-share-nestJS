@@ -6,6 +6,7 @@ import {
   Patch,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { LocationService } from './location.service';
@@ -13,6 +14,8 @@ import { SearchLocationParams } from './params/search-location.params';
 import { UpdateDriverLocationDto } from './dto/driver-location.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserType } from 'src/auth/user-type.enum';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SelfOrAdminGuard } from '../../auth/guards/self-or-admin.guard';
 
 interface RequestWithUser extends Request {
   user: { sub: string; email: string; role: string };
@@ -38,6 +41,7 @@ export class LocationController {
   }
 
   /** Kept for admin/tools; UUID driver id. */
+  @UseGuards(JwtAuthGuard, SelfOrAdminGuard)
   @Patch('driver/:driverId')
   @Roles(UserType.DRIVER, UserType.ADMIN)
   updateDriverLocation(

@@ -14,11 +14,11 @@ function env(values: Record<string, string>) {
 describe('resolvePostgresSsl', () => {
   it('respects DB_SSL override', () => {
     expect(resolvePostgresSsl(undefined, 'true')).toEqual({
-      rejectUnauthorized: false,
+      rejectUnauthorized: true,
     });
     expect(
       resolvePostgresSsl('postgresql://x@ep-x.neon.tech/db', 'false'),
-    ).toBe(false);
+    ).toEqual({ rejectUnauthorized: true });
   });
 
   it('disables TLS for localhost URLs; enables for remote', () => {
@@ -30,7 +30,7 @@ describe('resolvePostgresSsl', () => {
         'postgresql://u:p@ep-x.us-east-2.aws.neon.tech/neondb',
         undefined,
       ),
-    ).toEqual({ rejectUnauthorized: false });
+    ).toEqual({ rejectUnauthorized: true });
   });
 });
 
@@ -46,7 +46,7 @@ describe('postgresTypeOrmOptions', () => {
       type: 'postgres',
       url: 'postgresql://u:p@ep-x.neon.tech/db',
       synchronize: false,
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
     });
     expect(opts).not.toHaveProperty('host');
   });
